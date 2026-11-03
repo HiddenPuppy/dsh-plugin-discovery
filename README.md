@@ -78,3 +78,17 @@ node tools/warm-cache.mjs                    # 预热当前 profile 的磁盘缓
 ## License
 
 MIT
+
+---
+
+### English
+
+**Plugin Discovery** adds a *Plugin Discovery* page under the DSH sidebar (below *Automations*). It syncs the community-maintained DSH plugin catalog from GitHub — **22,785 plugins** — and shows each project with a one-sentence Chinese description, its category, language, stars and last update. Head categories stay as filter chips while the long tail folds into *Other*; sorting is catalog order / most stars / recently updated, with search and paging. The page paints instantly from a local cache while syncing the latest catalog in the background, and falls back to the jsDelivr mirror when `raw.githubusercontent.com` is unreachable.
+
+Install from DSH → Plugins → Add plugin → Install a third-party plugin, then paste:
+
+```text
+https://github.com/HiddenPuppy/dsh-plugin-discovery
+```
+
+Requires DSH V0.2.1-rc.5 or newer. MIT licensed.
