@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Plugin Discovery",
+    "description": "Adds a Plugin Discovery page under the left sidebar: live catalog of the GitHub DSH plugin market (22k+ plugins) with Chinese descriptions, head-category filters, star / recency sorting and an ecosystem summary."
+  }
+}

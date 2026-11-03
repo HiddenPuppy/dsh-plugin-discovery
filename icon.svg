@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="t d">
+  <title id="t">插件发现</title>
+  <desc id="d">A puzzle piece with a magnifier, standing for plugin discovery.</desc>
+  <rect width="64" height="64" rx="14" fill="#eaf2ff"/>
+  <path d="M26 13a5 5 0 0 1 10 0c0 1.8 1.4 3 3.2 3H43a4 4 0 0 1 4 4v3.8c0 1.8 1.2 3.2 3 3.2a5 5 0 0 1 0 10c-1.8 0-3 1.4-3 3.2V47a4 4 0 0 1-4 4h-3.8c-1.8 0-3.2 1.2-3.2 3a5 5 0 0 1-10 0c0-1.8-1.4-3-3.2-3H17a4 4 0 0 1-4-4v-3.8c0-1.8-1.2-3.2-3-3.2a5 5 0 0 1 0-10c1.8 0 3-1.4 3-3.2V20a4 4 0 0 1 4-4h3.8c1.8 0 3.2-1.2 3.2-3Z" fill="none" stroke="#172554" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="27.5" cy="27.5" r="6.5" fill="#4b6fff" stroke="#172554" stroke-width="2.4"/>
+  <path d="m32.3 32.3 5.6 5.6" stroke="#172554" stroke-width="3.2" stroke-linecap="round"/>
+</svg>

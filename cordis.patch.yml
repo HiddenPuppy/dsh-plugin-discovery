@@ -1,0 +1,7 @@
+# Bundle layer for dsh-plugin-discovery: one plugin row served by both halves.
+# The Host half registers /api/plugin-discovery/* routes that fetch and normalize
+# the GitHub DSH plugin market; the browser half registers the sidebar entry and
+# the main panel page.
+- insert:
+    - id: plugin-discovery
+      name: dsh-plugin-discovery
