@@ -1,25 +1,34 @@
-// End-to-end test of the Host half with local volume fixtures and a fake connection service.
-import { mkdtemp, readFile, stat } from 'node:fs/promises';
+// End-to-end test of the Host half with local fixtures and a fake connection service.
+import { mkdtemp, readFile, readdir, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { VOLUMES_FOR_TEST } from './volumes-fixture.mjs';
 
 const home = await mkdtemp(join(tmpdir(), 'dsh-pd-'));
 process.env.DSH_HOME = home;
 
-const dir = process.argv[2] ?? '/tmp/vols';
+const dir = process.argv[2] ?? '/tmp/vols-current';
+const archive = process.argv[3] ?? '/tmp/repo.tar.gz';
 const requested = [];
-let failNext = false;
+let archiveMode = process.argv.includes('--archive');
+let failArchive = !archiveMode;
+
 globalThis.fetch = async (url) => {
-  requested.push(String(url));
-  if (failNext) {
-    failNext = false;
-    return new Response('boom', { status: 500 });
+  const text = String(url);
+  requested.push(text);
+  if (/codeload\.github\.com/.test(text)) {
+    if (failArchive) return new Response('down', { status: 502 });
+    return new Response(await readFile(archive), { status: 200, headers: { 'content-type': 'application/gzip' } });
   }
-  const match = /catalog\/([a-z-]+)\.md$/.exec(String(url));
+  if (text.endsWith('/CATALOG.md')) {
+    return new Response(await readFile(`${dir}/CATALOG.md`, 'utf8'), { status: 200 });
+  }
+  const match = /\/catalog\/([a-z0-9-]+\.md)$/.exec(text);
   if (match) {
-    const body = await readFile(`${dir}/${match[1]}.md`, 'utf8');
-    return new Response(body, { status: 200, headers: { 'content-type': 'text/plain' } });
+    try {
+      return new Response(await readFile(`${dir}/${match[1]}`, 'utf8'), { status: 200 });
+    } catch {
+      return new Response('not found', { status: 404 });
+    }
   }
   return new Response('not found', { status: 404 });
 };
@@ -28,7 +37,7 @@ const routes = new Map();
 const ctx = { connection: { fetch: { register(route) { routes.set(route.path, route.fetch); } } } };
 const mod = await import('../index.js');
 mod.apply(ctx);
-console.log('routes', [...routes.keys()]);
+console.log('routes', [...routes.keys()], 'archiveMode', archiveMode);
 
 const started = Date.now();
 const first = await routes.get('/api/plugin-discovery/feed')(new Request('http://localhost/api/plugin-discovery/feed?wait=1'));
@@ -42,11 +51,8 @@ const second = await routes.get('/api/plugin-discovery/feed')(new Request('http:
 const secondBody = await second.json();
 console.log('second status', second.status, 'items', secondBody.items?.length, 'same fetchedAt', secondBody.fetchedAt === body.fetchedAt);
 
-const meta = await routes.get('/api/plugin-discovery/meta')(new Request('http://localhost/api/plugin-discovery/meta'));
-console.log('meta', await meta.json());
-
 // A failing upstream keeps serving the cached payload.
-failNext = true;
+failArchive = true;
 await routes.get('/api/plugin-discovery/feed')(new Request('http://localhost/api/plugin-discovery/feed?refresh=1'));
 const waited = await routes.get('/api/plugin-discovery/feed')(new Request('http://localhost/api/plugin-discovery/feed?wait=1'));
 const waitedBody = await waited.json();

@@ -2,13 +2,13 @@
 
 [**English**](README.md) | [中文](README.zh.md)
 
-> A **Plugin Discovery** page under the DSH sidebar (below *Automations*): the complete GitHub-hosted DSH plugin marketplace, with 22k+ plugins and a one-sentence Chinese description for every project.
+> A **Plugin Discovery** page under the DSH sidebar (below *Automations*): the complete GitHub-hosted DSH plugin marketplace, with 23k+ plugins and a one-sentence Chinese description for every project.
 
 ![Plugin Discovery screenshot](docs/screenshot.png)
 
 ## What it does
 
-- **The full catalog**: syncs the community-maintained DSH plugin catalog on GitHub (every repository verified under the `dsh-plugin` topic — **22,785** right now) and groups it into the same 10 categories the upstream catalog uses.
+- **The full catalog**: syncs the community-maintained DSH plugin catalog on GitHub (every repository verified under the `dsh-plugin` topic — **23,659** right now) and groups it into the same 10 categories the upstream catalog uses.
 - **A Chinese description for every project**: one sentence explaining what each plugin does. Repository-provided Chinese comes first, then an AI-generated Chinese summary bundled with this repo; newly listed projects get an automatic Chinese category summary until translated, with the original English description kept below.
 - **Head-category filters**: only the 6 head categories become filter chips; the long tail folds into *Other*.
 - **Three sort modes**: catalog order (default), most stars, recently updated — plus keyword search and 50 / 100 / 200 rows per page.
@@ -34,16 +34,16 @@ You can also let an agent install it (`plugin_manager` → `install_bundle` with
 ## Data source
 
 - Catalog: [bruc3van/awesome-dsh-plugin](https://github.com/bruc3van/awesome-dsh-plugin), the community-maintained full catalog of the GitHub `dsh-plugin` topic.
-- Reads its 13 per-category volumes (`catalog/*.md`, ~6 MB total) instead of the 22 MB `repositories.json`: lighter, friendlier to networks where GitHub raw is slow, and categories come straight from the volumes.
-- Tries `raw.githubusercontent.com` first (freshest data) and falls back to the jsDelivr mirror per file when a request times out or fails. The page footer shows the upstream snapshot date and the last sync time.
+- Downloads the repository archive from GitHub's codeload (one ~10 MB request) and reads every `catalog/*.md` volume it contains. The catalog renames and splits volumes as it grows, so file names are **discovered at runtime** instead of being hardcoded.
+- If the archive is unreachable, falls back to reading `CATALOG.md` and downloading the volume files it lists through a mirror chain: `raw.githubusercontent.com` → jsDelivr → GitHub acceleration mirrors (`gh-proxy.com`, `ghfast.top`, `ghproxy.net`). The page footer shows the upstream snapshot date and the last sync time.
 - The upstream catalog refreshes once a day; this plugin attempts a sync every time you open the page.
 
 ## How the Chinese descriptions are produced
 
 | Source | Count | Notes |
 | --- | ---: | --- |
-| Repository-provided Chinese | ~11.4k | The repository's own Chinese description |
-| AI-generated Chinese | ~11.4k | Cached in [`zh-descriptions.json`](zh-descriptions.json); edit it and refresh the page to override |
+| Repository-provided Chinese | ~11.9k | The repository's own Chinese description |
+| AI-generated Chinese | ~11.8k | Cached in [`zh-descriptions.json`](zh-descriptions.json); edit it and refresh the page to override |
 | Automatic category summary | new entries | Until a Chinese description exists, a sentence is generated from category and language |
 
 Descriptions combine repository text with model-generated summaries and are for reference only; the repository itself is authoritative.
@@ -80,3 +80,8 @@ node tools/warm-cache.mjs                    # pre-warm the current profile's di
 ## License
 
 MIT
+
+## Changelog
+
+- **1.1.0** — Fixed the Refresh button failing with `upstream 404` whenever the upstream catalog renamed or split its volume files. Volume names are now discovered at runtime (repository archive first, then `CATALOG.md` + per-file mirror chain), so the page keeps refreshing as the catalog grows. Catalog now lists 23,659 plugins.
+- **1.0.0** — First release.
