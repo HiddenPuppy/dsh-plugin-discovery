@@ -2,13 +2,14 @@
 
 [中文](README.md) | [**English**](README.en.md)
 
-## Latest v1.4.0 (2026-11-06)
+## Latest v1.5.0 (2026-11-06)
 
-[Release notes](https://github.com/HiddenPuppy/dsh-plugin-discovery/releases/tag/v1.4.0) · What changed:
+[Release notes](https://github.com/HiddenPuppy/dsh-plugin-discovery/releases/tag/v1.5.0) · What changed:
 
-- **AUI — proactive plugin discovery in conversation**: while you describe a need, DSH shows a small suggestion card in the **bottom-right corner** (never inside the transcript). Nothing installs until you press Install. Configurable from **Plugin Discovery → ⚙ AUI** (enable, sensitivity, cooldown, and a “try it” preview).
-- **Plugin management page**: a **Manage** tab lists official bundled plugins and third-party plugins installed in this profile, with enable/disable, uninstall, and list / grid views.
-- Failed installs can be handled in place (Allow and retry / Install from npm), and the ✓ marker persists.
+- **AUI now asks the model to stay quiet**: local recall proposes candidates, then the current DSH default model judges whether this message really needs one. Only a worthwhile, confident match floats a card in the bottom-right corner — no more keyword match pushing random plugins.
+- **Quiet-by-default frequency control**: 240 s cooldown, at most 4 suggestions per hour and 2 per session; if the model is unavailable or unsure, nothing is shown (no keyword fallback).
+- **Golden-set evaluation**: 36 realistic intents (26 positive, 10 negative, including the xiaohongshu-video regression), currently **94.4%** accuracy and **0/10** false positives. `tools/aui-golden.json`, the eval script and the full report ship in the repo.
+- Plugin management, install-failure handling and the ✓ marker are unchanged.
 - The catalog currently lists **24,075** plugins, **639** of which support one-click install from npm
 
 > A **Plugin Discovery** page under the DSH sidebar (below *Automations*): the complete GitHub-hosted DSH plugin marketplace, with 24k+ plugins, a one-sentence Chinese description for every project, GitHub README links and one-click installation.
@@ -31,20 +32,37 @@ The status card after an install (version, source and where to find it):
 - **One-click install**: every row has an **Install** button. It asks the DSH plugin manager to add that plugin to this profile, preferring the catalog's npm install target (639 plugins have one) and falling back to the GitHub repository. While it runs the page shows progress; when it finishes an inline status card says **whether it worked**, the installed version and **roughly where to find it** (sidebar / settings / agent tools / slash commands / notifications …), plus how to fix common failures (build scripts blocked, network unreachable, already installed, not a bundle).
 - **Installed markers**: plugins already present in this profile show **✓ Installed** instead of the install button.
 - **Failures are actionable**: blocked build scripts get an **Allow and retry** button (writes `allowBuilds` into this profile's `pnpm-workspace.yaml`); when the GitHub source is unusable but the same project publishes an npm package, the card offers **Install from npm instead**, which needs no build scripts.
-- **AUI — proactive discovery**: while you describe a need in conversation, the Host matches the catalog locally and floats the best plugin in the bottom-right corner; nothing installs before you confirm, and everything is configurable from **⚙ AUI**.
+- **AUI — proactive discovery**: local recall proposes candidates, the model silently judges whether the message really needs one, and only a confident match floats a card in the bottom-right corner; nothing installs before you confirm.
 - **Plugin management**: a **Manage** tab integrates official and installed third-party plugin enable/disable and uninstall, with list and grid views.
 
 ## AUI (agent-facing UI)
 
 ![AUI suggestion card](docs/aui.png)
 
-Describe a need in conversation (for example “tidy up this Excel sheet and check the formulas”) and the plugin matches it against the 24k-entry catalog locally, then floats the best candidate in the **bottom-right corner**:
+Describe a need in conversation (for example “tidy up this sales Excel sheet and check the formulas”) and AUI decides whether to disturb you in two steps:
+
+1. **Local recall** (no network, tens of ms): up to 15 candidates from the 24k-entry catalog, minus installed and previously ignored plugins
+2. **Model judgement** (current DSH default model, temperature 0, ~1–2 s): understand the actual task and decide whether a candidate really helps. If not, it stays silent rather than forcing a match
+
+Only “worth suggesting + confidence ≥ 0.6” floats a light card in the **bottom-right corner**:
 
 - **Never interrupts the transcript** — the card lives in the frame overlay
 - **You confirm** — Install only runs when you press it; Ignore / Don't suggest again are one click away
-- **Local only** — matching happens inside the Host process; conversation text is never sent to the market
-- **Configurable** — open **⚙ AUI** for the switch, match sensitivity, cooldown, and a “try it” preview
+- **Quiet by default** — 240 s cooldown, at most 4 per hour and 2 per session; if the model is unavailable or unsure, nothing is shown
+- **Configurable** — **⚙ AUI** holds the switch, minimum confidence, cooldown, hourly and per-session caps, plus a “try it” preview
 - **Related results** — “Browse similar” opens Plugin Discovery pre-filled with the plugin name
+
+### Golden set and evaluation
+
+`tools/aui-golden.json` holds **26 realistic user intents and 10 negatives that must stay quiet**, derived from the curated catalog scenarios, DSH community discussions, and a real mis-suggestion (`xiaohongshu video` once matched a video-frame vision plugin). `tools/aui-eval.py` feeds the golden set to the live `/aui/eval` endpoint:
+
+| Threshold | Hits | Wrong | Missed | False positives | Accuracy |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.5 | 24/26 | 1 | 1 | 0/10 | 94.4% |
+| 0.6 (default) | 24/26 | 1 | 1 | 0/10 | 94.4% |
+| 0.7 | 22/26 | 0 | 4 | 0/10 | 88.9% |
+
+See `tools/aui-eval-report.md` for the per-case table. The only clearly borderline case is Excel formula auditing, where the judge was right but stayed at 0.58 confidence; lower the minimum confidence to 0.5 if you prefer coverage.
 
 ## Plugin management
 
@@ -124,7 +142,7 @@ The Host half registers two routes on DSH's authenticated API channel:
 - `POST /api/plugin-discovery/install` — starts installing one catalog repository through `ctx.pluginManager`; returns a job id
 - `POST /api/plugin-discovery/install/approve` — retries the last failed install with the approval it needs (write `allowBuilds`, approve build scripts, or switch to the npm package)
 - `GET /api/plugin-discovery/bundles`, `POST …/bundles/enable`, `POST …/bundles/remove` — official / installed bundle list, switches and uninstall for the Manage tab
-- `GET/POST /api/plugin-discovery/aui`, `GET …/aui/suggestion`, `POST …/aui/dismiss`, `POST …/aui/test` — AUI settings, pending suggestion, dismiss and preview
+- `GET/POST /api/plugin-discovery/aui`, `GET …/aui/suggestion`, `POST …/aui/dismiss`, `POST …/aui/test`, `POST …/aui/eval` — AUI settings, pending suggestion, dismiss, preview and golden-set evaluation
 - `GET /api/plugin-discovery/install/status?id=…` — job state and the final install result (friendly error + placement hints)
 - `GET /api/plugin-discovery/installed` — bundles already installed in this profile (for the ✓ marker)
 
@@ -144,6 +162,7 @@ MIT
 
 ## Changelog
 
+- **1.5.0** — AUI moves from keyword matching to “local recall + model judgement”: the model stays silent unless a candidate genuinely helps with enough confidence; quiet defaults are 240 s cooldown, 4 per hour and 2 per session. Adds a 36-case golden set with an eval script (94.4% accuracy, 0/10 false positives).
 - **1.4.0** — Adds AUI (proactive, bottom-right plugin suggestions matched locally while you chat, install only after confirmation, configurable) and a **Manage** tab that integrates official and installed third-party plugin enabling, disabling, uninstalling and list/grid views.
 - **1.3.0** — Failed installs are handled in place: the status card offers **Allow and retry** (writes `allowBuilds`) and **Install from npm instead** (when the same repository publishes an npm package), and the ✓ marker is persisted. Fixes the missing build-approval entry on the built-in Plugins page (git source `prepare` scripts have no UI there).
 - **1.2.0** — One-click install: each row gains an **Install** button that installs the plugin into the current DSH profile through the plugin manager (npm install target first), then reports success/failure, the installed version and where to find it. Already-installed plugins are marked ✓. Failures are classified into actionable messages (build scripts blocked, network unreachable, already installed, not a DSH bundle). Catalog now lists 24,075 plugins.

@@ -1,0 +1,366 @@
+{
+  "version": 1,
+  "updatedAt": "2026-11-06",
+  "notes": "AUI golden set: realistic DSH user intents. Positive cases list acceptable plugin repositories (any one counts as a hit); negative cases should produce no suggestion. Sources: awesome-dsh-plugin curated scenario list (github.com/bruc3van/awesome-dsh-plugin), DSH community discussions (deepseek-ai/deepseek-harness, moyuqing-man/dsh-plugin-community), and user-reported mis-suggestions (xiaohongshu video query).",
+  "cases": [
+    {
+      "id": "excel-formula",
+      "kind": "positive",
+      "text": "帮我把这份销售台账的 Excel 整理一下，检查公式有没有算错，再按区域汇总",
+      "expect": [
+        "hccccc01333/dsh-excel-chat",
+        "dream-num/dsh-univer-office",
+        "alchaincyf/huashu-excel",
+        "zirscard/dsh-office-audit",
+        "po-et/dsh-sheet-diff",
+        "Melody-max114/dsh-excel-panel"
+      ],
+      "note": "Excel 数据整理 + 公式校验"
+    },
+    {
+      "id": "office-ui",
+      "kind": "positive",
+      "text": "我想在对话里直接打开并编辑 Word、Excel、PPT，最好能像 Office 一样看到表格",
+      "expect": [
+        "dream-num/dsh-univer-office",
+        "FylarOpen/dsh-fylar-office-editor",
+        "dake6767/dsh-onlyoffice",
+        "Mikuzjc/dsh-office-for-mso"
+      ],
+      "note": "可视化 Office 运行环境"
+    },
+    {
+      "id": "context-panel",
+      "kind": "positive",
+      "text": "想看清楚现在上下文窗口里到底装了什么，好判断什么时候该压缩",
+      "expect": [
+        "bowenliang123/dsh-context"
+      ],
+      "note": "上下文可视化"
+    },
+    {
+      "id": "better-sidebar",
+      "kind": "positive",
+      "text": "想把左侧边栏升级成能看文件、开终端、看 Git 的工作台",
+      "expect": [
+        "omdsh-dev/DSH-better-sidebar",
+        "tingfeng347/dsh-vscode-workbench",
+        "Yts1919/dsh-file-workbench"
+      ],
+      "note": "侧边栏工作台"
+    },
+    {
+      "id": "worktable",
+      "kind": "positive",
+      "text": "同时开了好几个 Agent 项目，想在一个管理台里监控它们的进度",
+      "expect": [
+        "Aisland-SJL/dsh-worktable",
+        "Fayelin12/dsh-office",
+        "toolclub/dsh-agent-team-gui",
+        "Qianrushixiaobai/dsh-agentmonitor"
+      ],
+      "note": "多项目管理台"
+    },
+    {
+      "id": "browser-op",
+      "kind": "positive",
+      "text": "想让 Agent 直接操作我登录着的浏览器，帮我在网页上点按钮、填表单",
+      "expect": [
+        "omdsh-dev/dsh-browser",
+        "Tencent/BrowserSkill",
+        "Fisfzy/dsh-ego-browser",
+        "wanwujiehuyi-web/dsh-omni-browser",
+        "titanwings/dsh-better-browser"
+      ],
+      "note": "浏览器自动化"
+    },
+    {
+      "id": "xhs-collect",
+      "kind": "positive",
+      "text": "帮我把小红书某个博主最近的笔记批量采集下来，整理成清单",
+      "expect": [
+        "nataliwhite20534-droid/dsh-xhs-collector",
+        "hzwym8912-code/dsh-everything-down",
+        "A3Boy/dsh-web-tools"
+      ],
+      "note": "小红书内容采集"
+    },
+    {
+      "id": "xhs-video-watermark",
+      "kind": "positive",
+      "text": "小红书上的视频怎么去水印下载下来",
+      "expect": [
+        "lohana20061023-29/dsh-media-downloader",
+        "zimai233/dsh-video-downloader",
+        "hzwym8912-code/dsh-everything-down"
+      ],
+      "note": "用户实际遇到的误报用例：不应推视频帧理解/视觉插件"
+    },
+    {
+      "id": "bili-daily",
+      "kind": "positive",
+      "text": "能不能每天帮我刷一圈 B 站，把值得看的挑出来写个日报",
+      "expect": [
+        "c1overzz/dsh-bili-scroll"
+      ],
+      "note": "B 站日报"
+    },
+    {
+      "id": "memory",
+      "kind": "positive",
+      "text": "想让它跨会话记住我的偏好和项目背景，不要每次重新说一遍",
+      "expect": [
+        "mem9-ai/mem9",
+        "omdsh-dev/dsh-mnemon",
+        "slow-stack/mneme",
+        "JunNanLYS/dsh-layered-memory"
+      ],
+      "note": "长期记忆"
+    },
+    {
+      "id": "lark-bot",
+      "kind": "positive",
+      "text": "想把这个 AI 接到飞书群里，群成员 @ 它就能直接干活",
+      "expect": [
+        "omdsh-dev/dsh-lark",
+        "xmanrui/dsh-im",
+        "wenbin-wb/dsh-bridge"
+      ],
+      "note": "飞书/IM 接入"
+    },
+    {
+      "id": "email",
+      "kind": "positive",
+      "text": "想在对话里收发邮件、起草回复并确认发送",
+      "expect": [
+        "STARDUSTLC666/dsh-email"
+      ],
+      "note": "邮件工作台"
+    },
+    {
+      "id": "meeting-minutes",
+      "kind": "positive",
+      "text": "把会议录音转成文字，再生成一份会议纪要",
+      "expect": [
+        "huliux/dsh-asr-plugin",
+        "zhangguitao666/meeting-suite",
+        "scarf1985566475-cloud/dsh-voice"
+      ],
+      "note": "会议转写与纪要"
+    },
+    {
+      "id": "tts",
+      "kind": "positive",
+      "text": "希望它回答的时候能直接把内容朗读出来",
+      "expect": [
+        "1624318455/dsh-plugin-tts",
+        "Yuuyuko-uu/dsh-tts-bridge",
+        "PolinniZhong/dsh-omi-voice",
+        "Fishsb/dsh-voice-prompt-enhancer"
+      ],
+      "note": "TTS 朗读"
+    },
+    {
+      "id": "voice-input",
+      "kind": "positive",
+      "text": "想用语音跟它说话，说完自动转文字发出去",
+      "expect": [
+        "qishuilalala/dsh-voice-mode",
+        "WizisCool/dsh-ears",
+        "PerryLink/dsh-talk",
+        "3274375092/dsh-voice"
+      ],
+      "note": "语音输入"
+    },
+    {
+      "id": "cron",
+      "kind": "positive",
+      "text": "想让它每天固定时间自动跑一个任务，比如早上汇总昨天的数据",
+      "expect": [
+        "titanwings/dsh-automation",
+        "GooDAnDReaDY/dsh-cron"
+      ],
+      "note": "定时/自动化"
+    },
+    {
+      "id": "paper-reader",
+      "kind": "positive",
+      "text": "读 PDF 论文太费劲，想在 DSH 里边读边问，还能检索",
+      "expect": [
+        "GGboya/dsh-paper-reader",
+        "baigaobai/dsh-paper-harness"
+      ],
+      "note": "论文阅读"
+    },
+    {
+      "id": "chart",
+      "kind": "positive",
+      "text": "想把这份数据做成图表，方便放进周报",
+      "expect": [
+        "lxfu1/dsh-plugin-chart",
+        "lhuans/dsh-genui"
+      ],
+      "note": "图表生成"
+    },
+    {
+      "id": "sales-crm",
+      "kind": "positive",
+      "text": "我是销售，想管理客户跟进记录和报价单，还能生成报价 PDF",
+      "expect": [
+        "winyh/dsh-sales",
+        "shine-233/dsh-waimao"
+      ],
+      "note": "销售/CRM"
+    },
+    {
+      "id": "subscriptions",
+      "kind": "positive",
+      "text": "想用 ChatGPT/Claude 的订阅登录，不想再买 API key",
+      "expect": [
+        "V1ki/dsh-plugin-subscriptions"
+      ],
+      "note": "订阅模型接入"
+    },
+    {
+      "id": "usage-cost",
+      "kind": "positive",
+      "text": "想知道每天对话花了多少钱，按会话统计一下",
+      "expect": [
+        "feiyang-dev/dsh-usage-plugin",
+        "kenz1117/dsh-ui-usage-billing",
+        "Han-1413141/dsh-cost-meter"
+      ],
+      "note": "用量与花费"
+    },
+    {
+      "id": "pocket-remote",
+      "kind": "positive",
+      "text": "人在外面，想用手机看电脑上正在跑的 DSH 会话",
+      "expect": [
+        "shaobeichen/dsh-pocket",
+        "SCSpotato/dsh-remote",
+        "dingchenhui0618-arch/dsh-in-hand",
+        "zexadev/dsh-tether",
+        "mrRisega/dsh-remote"
+      ],
+      "note": "手机远程"
+    },
+    {
+      "id": "pptx",
+      "kind": "positive",
+      "text": "帮我把这个主题做成一份 PPT，最好能在对话里预览和修改",
+      "expect": [
+        "alchaincyf/huashu-design",
+        "dream-num/dsh-univer-office",
+        "ZSeven-W/dsh-openpencil",
+        "pawpress/office-ppt",
+        "yunfeizhu/dsh-pptx-editor",
+        "ZhdanovDmitriy/dsh-pptx-builder",
+        "rong-coder/dsh-office-tool"
+      ],
+      "note": "PPT 生成"
+    },
+    {
+      "id": "ocr",
+      "kind": "positive",
+      "text": "这张图片里的文字帮我识别出来，整理成可复制的文本",
+      "expect": [
+        "liustack/modlens",
+        "ysr666/dsh-vision-router",
+        "Anionex/dsh-vision-toolkit",
+        "xiaoyuink/dsh-image-vision",
+        "vuvanmai936-dot/dsh-ocr-bridge"
+      ],
+      "note": "OCR/图片识别"
+    },
+    {
+      "id": "emoji",
+      "kind": "positive",
+      "text": "想让回复里带点自定义表情包，比如 B 站和小红书的",
+      "expect": [
+        "hellodigua/dsh-emoji"
+      ],
+      "note": "表情包"
+    },
+    {
+      "id": "pdf-translate",
+      "kind": "positive",
+      "text": "把这份几十页的英文 PDF 翻译成中文，最好保留原来的排版",
+      "expect": [
+        "csukingzq/dsh-pdf-translator",
+        "MARIOMLY/dsh-pdf-translate"
+      ],
+      "note": "PDF 翻译"
+    },
+    {
+      "id": "chitchat",
+      "kind": "negative",
+      "text": "你好呀，今天心情怎么样",
+      "expect": [],
+      "note": "闲聊"
+    },
+    {
+      "id": "coding",
+      "kind": "negative",
+      "text": "帮我把这段 Python 代码改成异步写法",
+      "expect": [],
+      "note": "通用编码"
+    },
+    {
+      "id": "concept",
+      "kind": "negative",
+      "text": "解释一下 CAP 定理是什么",
+      "expect": [],
+      "note": "概念问答"
+    },
+    {
+      "id": "poem",
+      "kind": "negative",
+      "text": "帮我写一首关于秋天的诗",
+      "expect": [],
+      "note": "创作"
+    },
+    {
+      "id": "debug",
+      "kind": "negative",
+      "text": "TypeError: Cannot read properties of undefined (reading 'map') 这个报错怎么排查",
+      "expect": [],
+      "note": "调试"
+    },
+    {
+      "id": "date",
+      "kind": "negative",
+      "text": "今天星期几",
+      "expect": [],
+      "note": "常识"
+    },
+    {
+      "id": "summarize-chat",
+      "kind": "negative",
+      "text": "帮我总结一下我们刚才聊的内容",
+      "expect": [],
+      "note": "会话内总结"
+    },
+    {
+      "id": "math",
+      "kind": "negative",
+      "text": "1+1 等于几",
+      "expect": [],
+      "note": "算术"
+    },
+    {
+      "id": "naming",
+      "kind": "negative",
+      "text": "帮我给这个函数起个更好的变量名",
+      "expect": [],
+      "note": "编码细节"
+    },
+    {
+      "id": "opinion",
+      "kind": "negative",
+      "text": "你觉得这个方案还有哪些风险？",
+      "expect": [],
+      "note": "分析讨论"
+    }
+  ]
+}

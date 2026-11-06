@@ -64,7 +64,21 @@ const fakeManager = {
 };
 
 const routes = new Map();
-const services = { pluginManager: fakeManager };
+const services = {
+  pluginManager: fakeManager,
+  agentDefaultModel: { currentSelection: () => ({ provider: 'deepseek', model: 'deepseek-chat' }) },
+  llm: {
+    stream(options) {
+      return (async function* stream() {
+        const prompt = options.messages?.[0]?.content?.[0]?.text ?? '';
+        const candidate = /^\d+\.\s+(\S+\/\S+)/m.exec(prompt);
+        const plugin = candidate?.[1] ?? null;
+        const answer = JSON.stringify({ suggest: plugin !== null, plugin, confidence: 0.9, reason: '测试判定' });
+        yield { type: 'text-delta', index: 0, text: answer };
+      })();
+    },
+  },
+};
 const ctx = {
   connection: { fetch: { register(route) { routes.set(route.path, route.fetch); } } },
   get(name) { return services[name]; },
@@ -161,6 +175,17 @@ console.log('aui suggestion:', testResponse.suggestion?.plugin?.full, testRespon
 const suggestionResponse = await (await routes.get('/api/plugin-discovery/aui/suggestion')(new Request('http://localhost/api/plugin-discovery/aui/suggestion'))).json();
 console.log('pending suggestion:', suggestionResponse.suggestion?.plugin?.full);
 await routes.get('/api/plugin-discovery/aui/dismiss')(new Request('http://localhost/api/plugin-discovery/aui/dismiss', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ mutePlugin: true }) }));
+
+// real path: one suggestion, then the cooldown/session budget keeps the next message quiet
+const first = await mod.decideAui('帮我把这份 Excel 台账整理一下，检查公式', { sessionId: 'session-1' });
+console.log('aui real-path suggestion:', first.suggestion?.plugin?.full ?? null, 'decision:', first.decision?.suggest);
+const second = await mod.decideAui('帮我把网页上的表格抓下来存成文档', { sessionId: 'session-1' });
+console.log('aui gated second message:', second.suggestion === null, 'reason:', second.decision?.reason);
+await routes.get('/api/plugin-discovery/aui')(new Request('http://localhost/api/plugin-discovery/aui', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ maxPerSession: 1, cooldownSeconds: 0 }) }));
+const third = await mod.decideAui('我想把网页抓取下来', { sessionId: 'session-2' });
+console.log('aui session cap:', third.suggestion !== null, 'reason:', third.decision?.reason);
+const fourth = await mod.decideAui('我想把网页抓取下来', { sessionId: 'session-2' });
+console.log('aui session capped second try:', fourth.suggestion === null, 'reason:', fourth.decision?.reason);
 
 // failing upstream keeps serving the cached payload
 failArchive = true;

@@ -933,18 +933,52 @@ let hostCtx = null;
 
 /** Persisted AUI settings file. */
 const AUI_FILE = join(CACHE_DIR, 'aui.json');
-/** Default AUI behaviour. */
-const AUI_DEFAULTS = { enabled: true, minScore: 3, cooldownSeconds: 120 };
+/** Quiet-by-default AUI behaviour. */
+const AUI_DEFAULTS = Object.freeze({
+  enabled: true,
+  cooldownSeconds: 240,
+  minConfidence: 0.6,
+  maxPerHour: 4,
+  maxPerSession: 2,
+});
+/** Judgement budget for one suggestion decision. */
+const AUI_MODEL_TIMEOUT_MS = 25000;
+/** How many locally recalled candidates the judge sees. */
+const AUI_RECALL_LIMIT = 15;
+/** Minimum local score for a candidate to reach the judge. */
+const AUI_RECALL_FLOOR = 0.5;
+/** How long a decision is reused for the same sentence. */
+const AUI_DECISION_TTL_MS = 10 * 60 * 1000;
+/** System prompt of the model judge. */
+const AUI_JUDGE_SYSTEM = [
+  '你是 DeepSeek Harness（DSH）的插件推荐助手。判断用户最新一句话里是否存在这样一个任务：',
+  '当前 DSH 自身能力可能不够，而候选列表里的某个插件能实质、直接地帮上忙。',
+  '必须保守：闲聊、情绪表达、通用知识问答、写代码/改代码/调试、写诗写文案、简单算术、总结当前对话，都不要推荐。',
+  '典型不推荐：今天星期几/现在几点/1+1 等于几/解释某个概念/帮我改这段代码/写一首诗/总结刚才聊的内容/翻译一小句话——这些 DSH 自己就能做。',
+  '候选列表由本地粗召回给出，包含噪音；只有插件能直接解决用户要做的事时才选它，否则 suggest=false。',
+  '优先选领域功能最贴合的插件；通用办公/文件/浏览器工具只有在没有领域插件匹配时才选。同等适合时优先选「可一键安装」的候选。',
+  '只输出一行 JSON，不要输出解释或 Markdown：',
+  '{"suggest":true或false,"plugin":"owner/name 或 null","confidence":0到1之间的数,"reason":"不超过60字的中文理由，不推荐时为空字符串"}',
+].join('\n');
+
 /** Loaded AUI settings. */
 let auiSettings = null;
 /** The suggestion waiting for the client to pick up. */
 let pendingSuggestion = null;
 /** Suggestion id sequence. */
 let suggestionSeq = 0;
-/** When the last real suggestion was produced. */
+/** When the last suggestion was actually shown. */
 let lastSuggestionAt = 0;
+/** One model judgement at a time; later messages wait for the next turn. */
+let decisionInFlight = false;
+/** Suggestion timestamps inside the rolling hour. */
+const suggestionTimes = [];
+/** Suggestions per session. */
+const sessionSuggestionCounts = new Map();
 /** Plugins the user asked not to suggest again. */
 const dismissedPlugins = new Set();
+/** Cache of sentence-hash → decision. */
+const decisionCache = new Map();
 /** Cache of derived search strings for the current catalog payload. */
 let searchCache = { fetchedAt: '', entries: [] };
 /** Short cache of installed bundle names. */
@@ -952,17 +986,17 @@ let installedCache = { at: 0, names: new Set(), aliases: new Map() };
 
 /**
  * Intent expansions: everyday wording → catalog vocabulary.
- * Keeps matching useful without any keyword index or model call.
+ * Keeps recall useful without any keyword index or model call.
  */
 const INTENTS = [
   { test: /excel|xlsx|spreadsheet|表格|台账|报表|对账|数据表|sheet\b|csv/i, terms: ['excel', 'xlsx', '表格', 'spreadsheet', 'sheet', 'csv', '台账', '报表', 'office'] },
   { test: /pdf|文档|word|docx|ppt|pptx|演示|幻灯片|office|办公/i, terms: ['office', 'docx', 'word', 'pdf', 'pptx', 'ppt', '文档', '演示', '幻灯片'] },
-  { test: /图片|修图|视觉|截图|识图|ocr|看图|识别图/i, terms: ['vision', 'image', 'ocr', '图片', '视觉', '截图', '识图'] },
-  { test: /浏览器|网页|爬|抓取|webkit|chrome|链接|打开网页/i, terms: ['browser', 'web', 'chrome', '网页', '浏览器', '爬虫', '抓取'] },
+  { test: /图片|修图|视觉|截图|识图|ocr|看图|识别图|照片/i, terms: ['vision', 'image', 'ocr', '图片', '视觉', '截图', '识图', '识别'] },
+  { test: /浏览器|网页|爬|抓取|webkit|chrome|链接|打开网页|登录着/i, terms: ['browser', 'web', 'chrome', '网页', '浏览器', '爬虫', '抓取'] },
   { test: /搜索|联网|查资料|搜一下|检索/i, terms: ['search', 'web-search', '搜索', '联网', '检索'] },
   { test: /通知|提醒|报警|告警|到点|完成时/i, terms: ['notification', 'notify', 'toast', '提醒', '通知', '告警'] },
   { test: /语音|说话|朗读|tts|听写|录音|语音输入/i, terms: ['voice', 'speech', 'tts', '语音', '朗读', '录音'] },
-  { test: /翻译|译成|中译英|英译中/i, terms: ['translate', 'translation', '翻译'] },
+  { test: /翻译|译成|中译英|英译中|translate/i, terms: ['translate', 'translation', '翻译'] },
   { test: /记忆|长期记忆|记住|上下文|知识库/i, terms: ['memory', 'context', '记忆', '上下文', '知识库'] },
   { test: /定时|每天|每周|周期|cron|schedule|自动化任务/i, terms: ['schedule', 'cron', '定时', '自动化', 'workflow'] },
   { test: /飞书|lark|钉钉|微信|企业微信|qq|telegram|slack|im\b|消息推送/i, terms: ['feishu', 'lark', 'wechat', 'telegram', 'slack', 'im', '飞书', '微信', '推送'] },
@@ -970,17 +1004,34 @@ const INTENTS = [
   { test: /数据库|sql|mysql|postgres|查询数据/i, terms: ['database', 'sql', 'mysql', 'postgres', '数据库'] },
   { test: /图表|可视化|看板|大屏|仪表盘|dashboard/i, terms: ['chart', 'dashboard', 'visualization', '图表', '可视化', '看板'] },
   { test: /主题|皮肤|美化|外观|壁纸|宠物/i, terms: ['theme', 'skin', 'wallpaper', 'pet', '主题', '皮肤', '壁纸', '宠物'] },
-  { test: /手机|安卓|android|ios|移动端|扫码/i, terms: ['mobile', 'android', 'ios', '手机', '移动'] },
+  { test: /手机|安卓|android|ios|移动端|扫码|远程/i, terms: ['mobile', 'android', 'ios', 'remote', '手机', '移动', '远程'] },
   { test: /命令|快捷键|斜杠/i, terms: ['command', 'shortcut', '命令', '快捷键'] },
   { test: /统计|用量|花费|成本|token|余额/i, terms: ['usage', 'cost', 'token', 'balance', '统计', '用量', '成本', '余额'] },
   { test: /监控|日志|诊断|排查|性能/i, terms: ['monitor', 'log', 'diagnose', '监控', '日志', '诊断'] },
-  { test: /视频|音频|剪辑|字幕|music|podcast/i, terms: ['video', 'audio', 'subtitle', '视频', '音频', '字幕'] },
-  { test: /日历|日程|会议|待办|任务|todo|task/i, terms: ['calendar', 'schedule', 'task', 'todo', '日历', '日程', '待办', '任务'] },
+  { test: /视频|音频|剪辑|字幕|music|podcast|抖音|b站|bilibili/i, terms: ['video', 'audio', 'subtitle', 'download', '视频', '音频', '字幕', '下载', '抖音', 'b站'] },
+  { test: /日历|日程|会议|待办|任务|todo|task|纪要/i, terms: ['calendar', 'schedule', 'task', 'todo', '会议', '纪要', '日程', '待办'] },
   { test: /销售|客户|crm|报价|订单|商机|外贸|获客/i, terms: ['crm', 'sales', 'customer', 'quote', 'order', '销售', '客户', '报价', '订单'] },
+  { test: /小红书|xhs|rednote|种草|笔记|博主/i, terms: ['小红书', 'xhs', 'rednote', '笔记', '博主', '采集', '社交'] },
+  { test: /邮件|email|outlook|gmail|收件箱/i, terms: ['email', 'mail', 'outlook', 'gmail', '邮件', '收件箱'] },
+  { test: /pdf|论文|paper|arxiv|文献/i, terms: ['pdf', 'paper', 'arxiv', '论文', '文献'] },
+  { test: /订阅|chatgpt|claude.*订阅|模型.*登录|api.?key/i, terms: ['subscription', 'oauth', '订阅', '模型', '登录'] },
 ];
 
 /** Common words that should not drive a match on their own. */
 const STOPWORDS = new Set(['the', 'and', 'for', 'with', 'that', 'this', 'you', 'can', 'help', 'please', 'have', 'want', 'need', 'make', 'use', 'from']);
+
+/**
+ * Clamp one numeric setting.
+ * @param {unknown} value raw value
+ * @param {number} min lower bound
+ * @param {number} max upper bound
+ * @param {number} fallback default
+ * @returns {number} clamped value
+ */
+function clampNumber(value, min, max, fallback) {
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, value));
+}
 
 /**
  * Read the AUI settings from disk once, merging defaults.
@@ -992,8 +1043,10 @@ async function loadAuiSettings() {
     const parsed = JSON.parse(await readFile(AUI_FILE, 'utf8'));
     auiSettings = {
       enabled: parsed.enabled !== false,
-      minScore: Number.isFinite(parsed.minScore) ? Math.min(10, Math.max(1, parsed.minScore)) : AUI_DEFAULTS.minScore,
-      cooldownSeconds: Number.isFinite(parsed.cooldownSeconds) ? Math.min(900, Math.max(0, parsed.cooldownSeconds)) : AUI_DEFAULTS.cooldownSeconds,
+      cooldownSeconds: Math.round(clampNumber(parsed.cooldownSeconds, 0, 900, AUI_DEFAULTS.cooldownSeconds)),
+      minConfidence: clampNumber(parsed.minConfidence, 0.1, 1, AUI_DEFAULTS.minConfidence),
+      maxPerHour: Math.round(clampNumber(parsed.maxPerHour, 1, 20, AUI_DEFAULTS.maxPerHour)),
+      maxPerSession: Math.round(clampNumber(parsed.maxPerSession, 1, 10, AUI_DEFAULTS.maxPerSession)),
     };
   } catch {
     auiSettings = { ...AUI_DEFAULTS };
@@ -1010,8 +1063,10 @@ async function saveAuiSettings(patch) {
   const current = await loadAuiSettings();
   const next = { ...current };
   if (typeof patch?.enabled === 'boolean') next.enabled = patch.enabled;
-  if (Number.isFinite(patch?.minScore)) next.minScore = Math.min(10, Math.max(1, patch.minScore));
-  if (Number.isFinite(patch?.cooldownSeconds)) next.cooldownSeconds = Math.min(900, Math.max(0, patch.cooldownSeconds));
+  if (Number.isFinite(patch?.cooldownSeconds)) next.cooldownSeconds = Math.round(clampNumber(patch.cooldownSeconds, 0, 900, next.cooldownSeconds));
+  if (Number.isFinite(patch?.minConfidence)) next.minConfidence = clampNumber(patch.minConfidence, 0.1, 1, next.minConfidence);
+  if (Number.isFinite(patch?.maxPerHour)) next.maxPerHour = Math.round(clampNumber(patch.maxPerHour, 1, 20, next.maxPerHour));
+  if (Number.isFinite(patch?.maxPerSession)) next.maxPerSession = Math.round(clampNumber(patch.maxPerSession, 1, 10, next.maxPerSession));
   auiSettings = next;
   try {
     await mkdir(CACHE_DIR, { recursive: true });
@@ -1054,6 +1109,10 @@ export function queryTerms(text) {
   for (const run of text.match(/[\u4e00-\u9fff]{2,}/g) ?? []) {
     for (let index = 0; index + 1 < run.length; index += 1) terms.add(run.slice(index, index + 2));
   }
+  // Office tasks mention 主题/幻灯片; do not let that pull theme and skin plugins into recall.
+  if (/excel|xlsx|docx|word|pptx|ppt\b|幻灯片|表格|文档/i.test(lower)) {
+    for (const noisy of ['主题', '皮肤', '壁纸', '美化', '外观', '宠物', 'theme', 'skin', 'wallpaper']) terms.delete(noisy);
+  }
   return terms;
 }
 
@@ -1074,6 +1133,7 @@ function searchEntries() {
       full: String(row[1] ?? '').toLowerCase(),
       text: `${row[7] ?? ''} ${row[8] ?? ''}`.toLowerCase(),
       category: String(categoryNames.get(row[6]) ?? '').toLowerCase(),
+      categoryZh: String(categoryNames.get(row[6]) ?? ''),
       stars: Number(row[2] ?? 0),
       via: String(row[11] ?? ''),
     })),
@@ -1139,47 +1199,254 @@ export function scoreEntry(entry, terms) {
 }
 
 /**
- * Match the catalog against one sentence.
+ * Recalls candidate plugins for one sentence: cheap local scoring, diversified.
  * @param {string} text user text
- * @param {boolean} [force] ignore the AUI switch and the cooldown
- * @returns {Promise<any | null>} suggestion or null
+ * @returns {Promise<Array<{ entry: any, score: number, matched: string[] }>>} candidates
  */
-export async function suggestFor(text, force = false) {
-  const settings = await loadAuiSettings();
-  if (!force && !settings.enabled) return null;
-  if (!force && Date.now() - lastSuggestionAt < settings.cooldownSeconds * 1000) return null;
-  await loadPersisted();
+export async function recallCandidates(text) {
   const entries = searchEntries();
-  if (entries.length === 0) return null;
+  if (entries.length === 0) return [];
   const terms = queryTerms(text);
-  if (terms.size === 0) return null;
+  if (terms.size === 0) return [];
   const { names, aliases } = await installedInfo();
-  /** @type {null | { entry: any, score: number, matched: string[] }} */
-  let best = null;
+  const scored = [];
   for (const entry of entries) {
     const full = String(entry.row[1]);
     if (dismissedPlugins.has(full)) continue;
     if (aliases.has(full)) continue;
     if (names.has(entry.name) || names.has(entry.full)) continue;
-    const scored = scoreEntry(entry, terms);
-    if (scored.score <= 0) continue;
-    if (best === null || scored.score > best.score) best = { entry, ...scored };
+    const result = scoreEntry(entry, terms);
+    if (result.score >= AUI_RECALL_FLOOR) scored.push({ entry, score: result.score, matched: result.matched });
   }
-  if (best === null || best.score < settings.minScore) return null;
+  scored.sort((left, right) => right.score - left.score);
+  const picked = [];
+  const perCategory = new Map();
+  for (const item of scored) {
+    if (picked.length >= AUI_RECALL_LIMIT) break;
+    const key = String(item.entry.row[6] ?? '');
+    const count = perCategory.get(key) ?? 0;
+    if (count >= 4) continue;
+    perCategory.set(key, count + 1);
+    picked.push(item);
+  }
+  return picked;
+}
+
+/**
+ * Read the default model selection of this Host.
+ * @returns {{ provider: string, model: string } | null} selection
+ */
+function currentModelSelection() {
+  try {
+    const service = hostCtx?.get('agentDefaultModel');
+    const selection = service?.currentSelection?.();
+    if (selection && typeof selection.provider === 'string' && typeof selection.model === 'string') {
+      return { provider: selection.provider, model: selection.model };
+    }
+  } catch {
+    /* no default model service */
+  }
+  return null;
+}
+
+/**
+ * Ask the default model a short question with a hard timeout.
+ * @param {string} system system prompt
+ * @param {string} prompt user prompt
+ * @returns {Promise<string | null>} plain answer, or null when unavailable
+ */
+async function askModel(system, prompt) {
+  const llm = hostCtx?.get('llm');
+  const selection = currentModelSelection();
+  if (llm === undefined || selection === null) return null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AUI_MODEL_TIMEOUT_MS);
+  try {
+    let text = '';
+    for await (const chunk of llm.stream({
+      provider: selection.provider,
+      model: selection.model,
+      system,
+      messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
+      temperature: 0,
+      maxTokens: 800,
+      signal: controller.signal,
+    })) {
+      if (chunk?.type === 'text-delta' && typeof chunk.text === 'string') text += chunk.text;
+      else if (chunk?.type === 'finish' && (chunk.reason?.kind === 'error' || chunk.reason?.kind === 'aborted')) return null;
+    }
+    return text;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Render the candidate list into the judge prompt.
+ * @param {string} text user text
+ * @param {any[]} candidates recalled candidates
+ * @returns {string} prompt
+ */
+function buildJudgePrompt(text, candidates) {
+  const lines = candidates.map((candidate, index) => {
+    const row = candidate.entry.row;
+    const description = String(row[7] || row[8] || '').replace(/\s+/g, ' ').slice(0, 110);
+    const install = row[11] === 'npm' ? '可一键安装' : '仅源码安装';
+    return `${index + 1}. ${row[1]} | ${candidate.entry.categoryZh || row[6]} | ${row[2]}★ | ${install} | ${description}`;
+  });
+  return [
+    '用户最新一句话：',
+    `"""${text.slice(0, 600)}"""`,
+    '',
+    '候选插件（编号. 仓库 | 分类 | 星标 | 简介）：',
+    ...lines,
+    '',
+    '请判断是否应推荐其中一个插件，并按要求只输出一行 JSON。',
+  ].join('\n');
+}
+
+/**
+ * Parse the model decision, tolerating code fences and prose around the JSON.
+ * @param {string | null} raw model answer
+ * @param {any[]} candidates recalled candidates
+ * @returns {null | { suggest: boolean, plugin: string | null, confidence: number, reason: string, matched: string[] }} decision
+ */
+function parseDecision(raw, candidates) {
+  if (typeof raw !== 'string' || raw.length === 0) return null;
+  const start = raw.indexOf('{');
+  const end = raw.lastIndexOf('}');
+  if (start < 0 || end <= start) return null;
+  let parsed;
+  try {
+    parsed = JSON.parse(raw.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+  if (parsed === null || typeof parsed !== 'object') return null;
+  const suggest = parsed.suggest === true;
+  const confidence = clampNumber(parsed.confidence, 0, 1, suggest ? 0.6 : 0);
+  const rawPlugin = typeof parsed.plugin === 'string' ? parsed.plugin.trim().toLowerCase() : '';
+  const reason = typeof parsed.reason === 'string' ? parsed.reason.replace(/\s+/g, ' ').slice(0, 140) : '';
+  const candidate = candidates.find((item) => item.entry.full === rawPlugin || item.entry.name === rawPlugin || String(item.entry.row[1]).toLowerCase() === rawPlugin) ?? null;
+  if (suggest && candidate === null) {
+    return { suggest: false, plugin: null, confidence: Math.min(confidence, 0.4), reason: '模型给出的插件不在候选列表里', matched: [] };
+  }
+  return { suggest, plugin: candidate === null ? null : String(candidate.entry.row[1]), confidence, reason, matched: candidate?.matched ?? [] };
+}
+
+/**
+ * Ask the model judge to choose a plugin for one sentence.
+ * @param {string} text user text
+ * @param {any[]} candidates recalled candidates
+ * @returns {Promise<any | null>} decision or null when the model is unavailable
+ */
+async function judgeCandidates(text, candidates) {
+  const prompt = buildJudgePrompt(text, candidates);
+  let raw = await askModel(AUI_JUDGE_SYSTEM, prompt);
+  let decision = parseDecision(raw, candidates);
+  if (decision === null) {
+    raw = await askModel(`${AUI_JUDGE_SYSTEM}\n只输出 JSON，不要任何其他字符。`, prompt);
+    decision = parseDecision(raw, candidates);
+  }
+  return decision;
+}
+
+/**
+ * Stable sentence hash for the decision cache.
+ * @param {string} text user text
+ * @returns {string} hash
+ */
+function hashText(text) {
+  let hash = 5381;
+  for (let index = 0; index < text.length; index += 1) hash = ((hash << 5) + hash + text.charCodeAt(index)) | 0;
+  return String(hash >>> 0);
+}
+
+/**
+ * Frequency gates: cooldown, rolling hour, per-session budget.
+ * @param {typeof AUI_DEFAULTS} settings current settings
+ * @param {string | undefined} sessionId session id
+ * @returns {boolean} whether a new suggestion is allowed
+ */
+function frequencyAllows(settings, sessionId) {
+  const now = Date.now();
+  if (now - lastSuggestionAt < settings.cooldownSeconds * 1000) return false;
+  while (suggestionTimes.length > 0 && now - suggestionTimes[0] > 60 * 60 * 1000) suggestionTimes.shift();
+  if (suggestionTimes.length >= settings.maxPerHour) return false;
+  if (typeof sessionId === 'string') {
+    const count = sessionSuggestionCounts.get(sessionId) ?? 0;
+    if (count >= settings.maxPerSession) return false;
+  }
+  return true;
+}
+
+/**
+ * Record one shown suggestion for the frequency budgets.
+ * @param {string | undefined} sessionId session id
+ */
+function recordSuggestion(sessionId) {
+  const now = Date.now();
+  lastSuggestionAt = now;
+  suggestionTimes.push(now);
+  if (typeof sessionId === 'string') {
+    sessionSuggestionCounts.set(sessionId, (sessionSuggestionCounts.get(sessionId) ?? 0) + 1);
+  }
+}
+
+/**
+ * Full AUI decision: recall → model judge → suggestion, with quiet gates.
+ * @param {string} text user text
+ * @param {{ force?: boolean, sessionId?: string }} [options] force ignores gates and cache
+ * @returns {Promise<{ suggestion: any|null, decision: any|null, candidates: string[], latencyMs: number }>} outcome
+ */
+export async function decideAui(text, options = {}) {
+  const force = options.force === true;
+  const settings = await loadAuiSettings();
+  if (!force && !settings.enabled) return { suggestion: null, decision: { suggest: false, reason: 'disabled' }, candidates: [], latencyMs: 0 };
+  if (!force && !frequencyAllows(settings, options.sessionId)) {
+    return { suggestion: null, decision: { suggest: false, reason: 'limited' }, candidates: [], latencyMs: 0 };
+  }
+  if (!force) {
+    const cached = decisionCache.get(hashText(text));
+    if (cached !== undefined && Date.now() - cached.at < AUI_DECISION_TTL_MS) {
+      return { suggestion: null, decision: cached.decision, candidates: [], latencyMs: 0 };
+    }
+  }
+  await loadPersisted();
+  const candidates = await recallCandidates(text);
+  if (candidates.length === 0) {
+    return { suggestion: null, decision: { suggest: false, reason: 'no-candidates' }, candidates: [], latencyMs: 0 };
+  }
+  const started = Date.now();
+  const decision = await judgeCandidates(text, candidates);
+  const latencyMs = Date.now() - started;
+  if (decision === null) {
+    return { suggestion: null, decision: null, candidates: candidates.map((item) => String(item.entry.row[1])), latencyMs };
+  }
+  if (!force) decisionCache.set(hashText(text), { at: Date.now(), decision });
+  const names = candidates.map((item) => String(item.entry.row[1]));
+  if (!decision.suggest || decision.plugin === null || decision.confidence < settings.minConfidence) {
+    return { suggestion: null, decision, candidates: names, latencyMs };
+  }
+  const best = candidates.find((item) => String(item.entry.row[1]) === decision.plugin) ?? null;
+  if (best === null) return { suggestion: null, decision, candidates: names, latencyMs };
   const row = best.entry.row;
-  const categoryZh = (state.payload?.categories ?? []).find((category) => category.key === row[6])?.zh ?? '';
   const suggestion = {
     id: `${Date.now().toString(36)}-${(suggestionSeq += 1)}`,
     createdAt: new Date().toISOString(),
     query: text.slice(0, 160),
-    reason: best.matched,
+    reason: decision.reason,
+    confidence: decision.confidence,
+    matched: best.matched,
     score: best.score,
     plugin: {
       name: row[0],
       full: row[1],
       stars: row[2],
       category: row[6],
-      categoryZh,
+      categoryZh: best.entry.categoryZh,
       zh: row[7],
       en: row[8],
       url: `https://github.com/${row[1]}`,
@@ -1187,21 +1454,41 @@ export async function suggestFor(text, force = false) {
       via: row[11] ?? '',
     },
   };
-  if (!force) lastSuggestionAt = Date.now();
-  return suggestion;
+  if (!force) recordSuggestion(options.sessionId);
+  return { suggestion, decision, candidates: names, latencyMs };
 }
 
 /**
- * React to a new user message by looking for a helpful catalog plugin.
+ * Backwards-compatible helper: return only the suggestion.
+ * @param {string} text user text
+ * @param {boolean} [force] ignore the AUI switch and the frequency gates
+ * @param {string} [sessionId] session id
+ * @returns {Promise<any | null>} suggestion or null
+ */
+export async function suggestFor(text, force = false, sessionId = undefined) {
+  return (await decideAui(text, { force, sessionId })).suggestion;
+}
+
+/**
+ * React to a new user message by asking the model whether a plugin would help.
  * @param {any} payload event payload
  * @returns {Promise<void>} completion
  */
 async function handleInboxMessage(payload) {
   try {
+    if (decisionInFlight) return;
     const text = messageText(payload?.message);
-    if (text.length < 4 || text.startsWith('/')) return;
-    const suggestion = await suggestFor(text, false);
-    if (suggestion !== null) pendingSuggestion = suggestion;
+    if (text.length < 6 || text.startsWith('/')) return;
+    const settings = await loadAuiSettings();
+    if (!settings.enabled) return;
+    if (!frequencyAllows(settings, payload?.agent?.id)) return;
+    decisionInFlight = true;
+    try {
+      const outcome = await decideAui(text, { sessionId: payload?.agent?.id });
+      if (outcome.suggestion !== null) pendingSuggestion = outcome.suggestion;
+    } finally {
+      decisionInFlight = false;
+    }
   } catch {
     /* AUI must never disturb the conversation */
   }
@@ -1505,9 +1792,41 @@ function registerRoutes(ctx) {
       try {
         const body = await request.json().catch(() => ({}));
         const text = typeof body?.text === 'string' && body.text.trim().length > 0 ? body.text.trim() : '帮我整理一下 Excel 表格数据，检查公式';
-        const suggestion = await suggestFor(text, true);
-        pendingSuggestion = suggestion;
-        return json({ suggestion, text });
+        const outcome = await decideAui(text, { force: true });
+        pendingSuggestion = outcome.suggestion;
+        return json({ suggestion: outcome.suggestion, decision: outcome.decision, candidates: outcome.candidates, latencyMs: outcome.latencyMs, text });
+      } catch (error) {
+        return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+      }
+    },
+  });
+
+  ctx.connection.fetch.register({
+    path: '/api/plugin-discovery/aui/eval',
+    methods: ['POST'],
+    requestBody: 'buffered',
+    fetch: async (request) => {
+      try {
+        const body = await request.json().catch(() => ({}));
+        const cases = Array.isArray(body?.cases) ? body.cases.slice(0, 60) : [];
+        const results = [];
+        for (const item of cases) {
+          const text = typeof item?.text === 'string' ? item.text.trim() : '';
+          if (text.length === 0) continue;
+          const started = Date.now();
+          const outcome = await decideAui(text, { force: true });
+          results.push({
+            id: typeof item?.id === 'string' ? item.id : String(results.length),
+            suggest: outcome.suggestion !== null,
+            plugin: outcome.suggestion?.plugin?.full ?? outcome.decision?.plugin ?? null,
+            confidence: outcome.decision?.confidence ?? 0,
+            reason: outcome.decision?.reason ?? '',
+            modelAvailable: outcome.decision !== null,
+            latencyMs: Date.now() - started,
+            recall: outcome.candidates ?? [],
+          });
+        }
+        return json({ results });
       } catch (error) {
         return json({ error: error instanceof Error ? error.message : String(error) }, 500);
       }
