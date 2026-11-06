@@ -1,93 +1,102 @@
-# Plugin Discovery · DSH Plugin Discovery
+# 插件发现 · DSH Plugin Discovery
 
-[**English**](README.md) | [中文](README.zh.md)
+[**中文**](README.md) | [English](README.en.md)
 
-> A **Plugin Discovery** page under the DSH sidebar (below *Automations*): the complete GitHub-hosted DSH plugin marketplace, with 24k+ plugins, a one-sentence Chinese description for every project, GitHub README links and one-click installation.
+## 最新版本 v1.2.0（2026-11-06）
 
-![Plugin Discovery screenshot](docs/screenshot.png)
+[Release 说明](https://github.com/HiddenPuppy/dsh-plugin-discovery/releases/tag/v1.2.0) · 本次改动：
 
-## What it does
+- **一键安装**：每个插件都有「安装」按钮，点击后自动装进当前 DSH profile，安装完成会提示「装好了没有」以及大致在哪里使用
+- **已安装标记**：当前 profile 里已有的插件显示「✓ 已安装」，不再重复安装
+- **修复刷新 404**：上游目录的分册文件改为运行时发现，目录增长、拆分、改名都不再导致刷新失败
+- 当前收录 **24,075** 个插件，其中 **639** 个支持 npm 源一键安装
 
-- **The full catalog**: syncs the community-maintained DSH plugin catalog on GitHub (every repository verified under the `dsh-plugin` topic — **24,075** right now) and groups it into the same 10 categories the upstream catalog uses.
-- **A Chinese description for every project**: one sentence explaining what each plugin does. Repository-provided Chinese comes first, then an AI-generated Chinese summary bundled with this repo; newly listed projects get an automatic Chinese category summary until translated, with the original English description kept below.
-- **Head-category filters**: only the 6 head categories become filter chips; the long tail folds into *Other*.
-- **Three sort modes**: catalog order (default), most stars, recently updated — plus keyword search and 50 / 100 / 200 rows per page.
-- **Refreshes on every open**: paints instantly from a local cache, syncs the latest catalog in the background, then swaps in the new data. The **Refresh** button in the corner forces a sync.
-- **Ecosystem overview**: plugin count, categories, languages, projects updated in the last 30 days, an auto-generated Chinese summary, and a category distribution bar.
-- **Open the project**: clicking a row (or **Open project ↗**) opens the plugin's GitHub page so you can read its README before installing.
-- **One-click install**: every row has an **Install** button. It asks the DSH plugin manager to add that plugin to this profile, preferring the catalog's npm install target (639 plugins have one) and falling back to the GitHub repository. While it runs the page shows progress; when it finishes an inline status card says **whether it worked**, the installed version and **roughly where to find it** (sidebar / settings / agent tools / slash commands / notifications …), plus how to fix common failures (build scripts blocked, network unreachable, already installed, not a bundle).
-- **Installed markers**: plugins already present in this profile show **✓ Installed** instead of the install button.
+> 在 DSH 左侧栏「自动化任务」下方加一个「插件发现」页面：把 GitHub 上社区维护的 **DSH 插件市场全量目录**接进 Harness，2.4 万+ 插件一览无余，每个项目都配一句中文简介，还能直接点「安装」装进当前 DSH。
 
-## Install
+![插件发现使用截图](docs/screenshot.png)
 
-Requires **DSH V0.2.1-rc.5 or newer**.
+## 它做什么
 
-1. Open **Plugins** in the DSH sidebar → **Add plugin** → **Install a third-party plugin**.
-2. Paste this repository's Git URL:
+- **全量目录**：实时同步 GitHub 社区维护的 DSH 插件全量目录（`dsh-plugin` topic 核实收录，当前 **24,075** 个），按与上游相同的规则归入 10 个分类。
+- **中文简介**：每个项目一句中文说明它是干什么的。优先使用项目自带中文简介，其次是随仓库打包的 AI 中文简介；新收录的项目会先显示按分类与语言生成的中文归类摘要，英文原简介保留在下方。
+- **头部类目筛选**：只把头部 6 个分类做成筛选胶囊，长尾分类统一折叠进「其他」。
+- **三种排序**：全部（目录顺序）、最高 Star、最新更新；支持关键词搜索、每页 50 / 100 / 200 条分页。
+- **每次打开自动刷新**：先用本地缓存秒开，同时后台向 GitHub 同步一次，完成后自动替换为最新数据；右上角「刷新」可手动同步。
+- **生态概况**：收录总数、分类数、语言数、近 30 天更新数，一段自动生成的中文总结，以及头部分类的数量分布条。
+- **查看项目**：点击任意一行（或「打开项目 ↗」）会打开对应 GitHub 仓库，先看 README 再决定要不要装。
+- **一键安装**：每行都有「安装」按钮，点击后由 DSH 插件管理器把该插件装进当前 profile——优先使用目录里的 npm 安装源（639 个插件有 npm 源），没有时回退到 GitHub 仓库。安装期间显示进度；结束后页面内会出现状态卡片，说明**装好了还是没有装好**、安装的版本、以及**大致在哪里使用**（侧边栏 / 设置 / Agent 工具 / 斜杠命令 / 通知……），并给出常见失败的处理办法（构建脚本被拦、网络不可达、已安装、不是插件包）。
+- **已安装标记**：当前 profile 里已有的插件会显示「✓ 已安装」，不再重复安装。
+
+## 安装
+
+要求 **DSH V0.2.1-rc.5 及以上**。
+
+1. 打开 DSH 左侧「插件」→「添加插件」→「安装第三方插件」。
+2. 在输入框填入本仓库的 Git 地址：
 
    ```text
    https://github.com/HiddenPuppy/dsh-plugin-discovery
    ```
 
-3. After installation, **Plugin Discovery** appears under *Automations* in the sidebar. Refresh the window if it does not show up immediately.
+3. 安装完成后，左侧栏「自动化任务」下方会出现「插件发现」。若没有立即出现，刷新一下窗口即可。
 
-You can also let an agent install it (`plugin_manager` → `install_bundle` with the Git URL or a local absolute path), or `git clone` this repo and pass the local path to the install dialog.
+也可以让 Agent 代为安装（`plugin_manager` 的 `install_bundle` 指向 Git 地址或本地绝对路径），或先 `git clone` 本仓库，再把本地绝对路径填进安装对话框。
 
-## Data source
+## 数据来源
 
-- Catalog: [bruc3van/awesome-dsh-plugin](https://github.com/bruc3van/awesome-dsh-plugin), the community-maintained full catalog of the GitHub `dsh-plugin` topic.
-- Downloads the repository archive from GitHub's codeload (one ~10 MB request) and reads every `catalog/*.md` volume it contains. The catalog renames and splits volumes as it grows, so file names are **discovered at runtime** instead of being hardcoded.
-- If the archive is unreachable, falls back to reading `CATALOG.md` and downloading the volume files it lists through a mirror chain: `raw.githubusercontent.com` → jsDelivr → GitHub acceleration mirrors (`gh-proxy.com`, `ghfast.top`, `ghproxy.net`). The page footer shows the upstream snapshot date and the last sync time.
-- The upstream catalog refreshes once a day; this plugin attempts a sync every time you open the page.
+- 目录：[bruc3van/awesome-dsh-plugin](https://github.com/bruc3van/awesome-dsh-plugin)，GitHub `dsh-plugin` topic 的社区维护全量目录。
+- 直接下载仓库归档包（GitHub codeload，一次约 10 MB 请求），读取其中全部 `catalog/*.md` 分类分册；上游会随目录增长拆分、改名分册文件，所以文件名是**运行时发现**的，不会因为上游改名而失效。
+- 归档包不可达时，退化为读取 `CATALOG.md` 索引，再按索引逐个下载分册，依次尝试 `raw.githubusercontent.com` → jsDelivr → GitHub 加速镜像（gh-proxy.com / ghfast.top / ghproxy.net）；页面底部会标注快照日期与上次同步时间。
+- 目录每天由上游刷新一次，本插件每次打开页面都会尝试同步。
 
-## How the Chinese descriptions are produced
+## 中文简介是怎么来的
 
-| Source | Count | Notes |
+| 来源 | 数量 | 说明 |
 | --- | ---: | --- |
-| Repository-provided Chinese | ~11.9k | The repository's own Chinese description |
-| AI-generated Chinese | ~11.8k | Cached in [`zh-descriptions.json`](zh-descriptions.json); edit it and refresh the page to override |
-| Automatic category summary | new entries | Until a Chinese description exists, a sentence is generated from category and language |
+| 项目自带中文 | 约 1.19 万 | 仓库自己的中文简介 |
+| AI 生成中文 | 约 1.18 万 | 缓存在 [`zh-descriptions.json`](zh-descriptions.json)，可自行修订，刷新页面后生效 |
+| 自动归类摘要 | 新增项目 | 收录后暂无中文时，按分类与开发语言生成一句中文概括 |
 
-Descriptions combine repository text with model-generated summaries and are for reference only; the repository itself is authoritative.
+简介由项目作者原文与模型生成结果组成，仅供参考；以项目仓库为准。
 
-## Project layout
+## 目录结构
 
 ```text
 .
-├── index.js              # Host half: fetch volumes, parse, Chinese fallback, disk cache, API routes
-├── client.js             # Browser half: sidebar entry + main panel page
-├── cordis.patch.yml      # Bundle patch: inserts the plugin-discovery row
-├── locale/{zh,en}.json   # Title and description shown by the plugin manager
-├── icon.svg              # Plugin icon (puzzle piece + magnifier)
-├── zh-descriptions.json  # AI Chinese description cache (owner/repo → Chinese)
-├── docs/screenshot.png   # Usage screenshot
-└── tools/                # Offline normalization check, route e2e test, live sync, cache warm-up
+├── index.js              # Host 半侧：拉取分册、解析、中文兜底、磁盘缓存、API 路由
+├── client.js             # 浏览器半侧：侧边栏入口 + main 面板页面
+├── cordis.patch.yml      # bundle 补丁：插入 plugin-discovery 一行
+├── locale/{zh,en}.json   # 插件管理器中展示的标题与描述
+├── icon.svg              # 插件图标（拼图 + 放大镜）
+├── zh-descriptions.json  # AI 中文简介缓存（owner/repo → 中文）
+├── docs/screenshot.png   # 使用截图
+└── tools/                # 离线归一化检查、路由端到端检查、真实上游联调、预热缓存
 ```
 
-The Host half registers two routes on DSH's authenticated API channel:
+Host 半侧在 DSH 的鉴权 API 通道上注册两条路由：
 
-- `GET /api/plugin-discovery/feed` — the normalized catalog; `?refresh=1` starts a background refresh, `?wait=1` waits for the in-flight refresh before responding
-- `GET /api/plugin-discovery/meta` — sync status (last sync time, refreshing, error message)
-- `POST /api/plugin-discovery/install` — starts installing one catalog repository through `ctx.pluginManager`; returns a job id
-- `GET /api/plugin-discovery/install/status?id=…` — job state and the final install result (friendly error + placement hints)
-- `GET /api/plugin-discovery/installed` — bundles already installed in this profile (for the ✓ marker)
+- `GET /api/plugin-discovery/feed` —— 归一化后的插件目录；`?refresh=1` 触发后台刷新，`?wait=1` 等待进行中的刷新结束后返回
+- `GET /api/plugin-discovery/meta` —— 同步状态（上次同步时间、是否刷新中、错误信息）
+- `POST /api/plugin-discovery/install` —— 通过 `ctx.pluginManager` 开始安装一个目录里的插件，返回任务 id
+- `GET /api/plugin-discovery/install/status?id=…` —— 任务状态与最终结果（友好错误信息 + 使用位置提示）
+- `GET /api/plugin-discovery/installed` —— 当前 profile 已安装的 bundle（用于「✓ 已安装」标记）
 
-The browser never talks to GitHub directly: download, parsing, classification and caching all happen in the Host; the browser only renders the result.
+浏览器半侧从不直连 GitHub：下载、解析、分类与缓存都在 Host 完成，浏览器只渲染结果。
 
-## Development & verification
+## 开发与验证
 
 ```bash
-node tools/live-test.mjs                     # one real upstream sync, prints the stats
-node tools/route-test.mjs /path/to/catalog   # route, cache and failure-fallback test with local volumes
-node tools/warm-cache.mjs                    # pre-warm the current profile's disk cache
+node tools/live-test.mjs                     # 直连上游跑一次真实同步并打印统计
+node tools/route-test.mjs /path/to/catalog   # 用本地分册快照测试路由、缓存与失败降级
+node tools/warm-cache.mjs                    # 预热当前 profile 的磁盘缓存
 ```
 
 ## License
 
 MIT
 
-## Changelog
+## 更新记录
 
-- **1.2.0** — One-click install: each row gains an **Install** button that installs the plugin into the current DSH profile through the plugin manager (npm install target first), then reports success/failure, the installed version and where to find it. Already-installed plugins are marked ✓. Failures are classified into actionable messages (build scripts blocked, network unreachable, already installed, not a DSH bundle). Catalog now lists 24,075 plugins.
-- **1.1.0** — Fixed the Refresh button failing with `upstream 404` whenever the upstream catalog renamed or split its volume files. Volume names are now discovered at runtime (repository archive first, then `CATALOG.md` + per-file mirror chain), so the page keeps refreshing as the catalog grows. Catalog now lists 23,659 plugins.
-- **1.0.0** — First release.
+- **1.2.0** — 一键安装：每行新增「安装」按钮，点击后通过插件管理器把插件装进当前 DSH profile（优先 npm 安装源），并给出安装成功/失败、版本与大致使用位置；已安装插件显示「✓ 已安装」。失败原因会归类成可操作的中文提示（构建脚本被拦 / 网络不可达 / 已安装 / 不是 DSH 插件包）。当前收录 24,075 个插件。
+- **1.1.0** — 修复点击「刷新」报 `upstream 404` 的问题：上游目录会拆分/改名前缀分册文件，旧版本硬编码了分册文件名。现在改为运行时发现分册（优先下载仓库归档包，失败时读 `CATALOG.md` 索引再按镜像链逐一下载），目录增长后也不会失效。
+- **1.0.0** — 首次发布。
