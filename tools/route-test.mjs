@@ -1,5 +1,5 @@
-// End-to-end test of the Host half with local fixtures and a fake connection service.
-import { mkdtemp, readFile, readdir, stat } from 'node:fs/promises';
+// End-to-end test of the Host half with local fixtures and fake services.
+import { mkdtemp, readFile, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -11,6 +11,7 @@ const archive = process.argv[3] ?? '/tmp/repo.tar.gz';
 const requested = [];
 let archiveMode = process.argv.includes('--archive');
 let failArchive = !archiveMode;
+let inspectMode = 'accepted';
 
 globalThis.fetch = async (url) => {
   const text = String(url);
@@ -19,42 +20,100 @@ globalThis.fetch = async (url) => {
     if (failArchive) return new Response('down', { status: 502 });
     return new Response(await readFile(archive), { status: 200, headers: { 'content-type': 'application/gzip' } });
   }
-  if (text.endsWith('/CATALOG.md')) {
-    return new Response(await readFile(`${dir}/CATALOG.md`, 'utf8'), { status: 200 });
+  if (text.endsWith('/CATALOG.md')) return new Response(await readFile(`${dir}/CATALOG.md`, 'utf8'), { status: 200 });
+  if (text.endsWith('/data/packages.json')) {
+    try { return new Response(await readFile(`${dir}/packages.json`, 'utf8'), { status: 200 }); } catch { return new Response('nf', { status: 404 }); }
   }
   const match = /\/catalog\/([a-z0-9-]+\.md)$/.exec(text);
   if (match) {
-    try {
-      return new Response(await readFile(`${dir}/${match[1]}`, 'utf8'), { status: 200 });
-    } catch {
-      return new Response('not found', { status: 404 });
-    }
+    try { return new Response(await readFile(`${dir}/${match[1]}`, 'utf8'), { status: 200 }); } catch { return new Response('nf', { status: 404 }); }
   }
   return new Response('not found', { status: 404 });
 };
 
+const installedBundle = {
+  name: '@demo/dsh-demo',
+  installed: true,
+  enabled: true,
+  version: '1.2.3',
+  source: 'npm:@demo/dsh-demo@1.2.3',
+  meta: { title: { en: 'Demo plugin', zh: '演示插件' }, description: { en: 'Demo', zh: '演示用插件' } },
+  rows: [{ rowId: 'tool-demo', moduleName: '@demo/dsh-demo/tool' }],
+};
+const fakeManager = {
+  async inspect(spec) {
+    if (inspectMode === 'refused') return { status: 'refused', problem: 'not-bundle', reason: 'no bundle patch' };
+    if (inspectMode === 'missing') return { status: 'refused', problem: 'not-found', reason: 'not found' };
+    return { status: 'accepted', kind: 'npm', name: '@demo/dsh-demo', version: '1.2.3', bundle: true, registry: null };
+  },
+  async installBundle() {
+    return { changed: true, application: 'applied', stage: 'install', target: '@demo/dsh-demo', bundle: '@demo/dsh-demo', version: '1.2.3' };
+  },
+  async listBundles() {
+    return [installedBundle];
+  },
+};
+
 const routes = new Map();
-const ctx = { connection: { fetch: { register(route) { routes.set(route.path, route.fetch); } } } };
+const services = { pluginManager: fakeManager };
+const ctx = {
+  connection: { fetch: { register(route) { routes.set(route.path, route.fetch); } } },
+  get(name) { return services[name]; },
+};
 const mod = await import('../index.js');
 mod.apply(ctx);
 console.log('routes', [...routes.keys()], 'archiveMode', archiveMode);
 
-const started = Date.now();
-const first = await routes.get('/api/plugin-discovery/feed')(new Request('http://localhost/api/plugin-discovery/feed?wait=1'));
-const body = await first.json();
-console.log('first status', first.status, 'items', body.items?.length, 'ms', Date.now() - started, 'error', body.error);
-console.log('stats', body.stats, 'upstream', body.upstream);
-const cachePath = join(home, 'cache', 'plugin-discovery', 'feed.json');
-console.log('cache MB', ((await stat(cachePath)).size / 1048576).toFixed(2));
+const feed = await (await routes.get('/api/plugin-discovery/feed')(new Request('http://localhost/api/plugin-discovery/feed?wait=1'))).json();
+const installs = {};
+for (const row of feed.items) installs[row[11] || 'none'] = (installs[row[11] || 'none'] ?? 0) + 1;
+console.log('feed items', feed.items.length, 'installable', feed.stats.installable, installs, 'upstream', feed.upstream);
+console.log('cache MB', ((await stat(join(home, 'cache', 'plugin-discovery', 'feed.json'))).size / 1048576).toFixed(2));
 
-const second = await routes.get('/api/plugin-discovery/feed')(new Request('http://localhost/api/plugin-discovery/feed'));
-const secondBody = await second.json();
-console.log('second status', second.status, 'items', secondBody.items?.length, 'same fetchedAt', secondBody.fetchedAt === body.fetchedAt);
+// install job: success
+const startResponse = await routes.get('/api/plugin-discovery/install')(new Request('http://localhost/api/plugin-discovery/install', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ full: 'demo/dsh-demo' }),
+}));
+const started = await startResponse.json();
+console.log('install start', startResponse.status, started);
+let status;
+for (let i = 0; i < 50; i += 1) {
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  status = await (await routes.get('/api/plugin-discovery/install/status')(new Request(`http://localhost/api/plugin-discovery/install/status?id=${started.jobId}`))).json();
+  if (status.status === 'done') break;
+}
+console.log('install done', status.status, JSON.stringify(status.result, null, 1).slice(0, 700));
+console.log('installed endpoint', await (await routes.get('/api/plugin-discovery/installed')(new Request('http://localhost/api/plugin-discovery/installed'))).json());
 
-// A failing upstream keeps serving the cached payload.
+// install job: refusal
+inspectMode = 'refused';
+const refusedStart = await (await routes.get('/api/plugin-discovery/install')(new Request('http://localhost/api/plugin-discovery/install', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ full: 'demo/docs-only' }),
+}))).json();
+let refused;
+for (let i = 0; i < 50; i += 1) {
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  refused = await (await routes.get('/api/plugin-discovery/install/status')(new Request(`http://localhost/api/plugin-discovery/install/status?id=${refusedStart.jobId}`))).json();
+  if (refused.status === 'done') break;
+}
+console.log('refused result', refused.result);
+
+// invalid repo name
+const bad = await routes.get('/api/plugin-discovery/install')(new Request('http://localhost/api/plugin-discovery/install', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ full: 'not-a-repo' }),
+}));
+console.log('invalid repo status', bad.status);
+
+// failing upstream keeps serving the cached payload
 failArchive = true;
+inspectMode = 'accepted';
 await routes.get('/api/plugin-discovery/feed')(new Request('http://localhost/api/plugin-discovery/feed?refresh=1'));
-const waited = await routes.get('/api/plugin-discovery/feed')(new Request('http://localhost/api/plugin-discovery/feed?wait=1'));
-const waitedBody = await waited.json();
-console.log('after failure status', waited.status, 'items', waitedBody.items?.length, 'error', waitedBody.error);
+const waited = await (await routes.get('/api/plugin-discovery/feed')(new Request('http://localhost/api/plugin-discovery/feed?wait=1'))).json();
+console.log('after failure items', waited.items?.length, 'error', waited.error);
 console.log('upstream requests', requested.length);

@@ -65,6 +65,32 @@ window.__ModuleLoader__.load({
       'source.auto': '自动归类',
       'synced.at': '上次同步：{time}',
       'stale.warning': '本次同步失败，正在显示本地缓存数据：{error}',
+      'table.actions': '操作',
+      'action.install': '安装',
+      'action.installing': '安装中…',
+      'action.installed': '已安装',
+      'action.installSource.npm': 'npm 源',
+      'action.installSource.git': 'GitHub 源',
+      'summary.installable': '其中 {count} 个可通过 npm 源一键安装。',
+      'footer.install': '点击「安装」会通过 DSH 插件管理器把插件装进当前 profile（优先 npm 源），安装完成后再按提示刷新窗口或重启 DSH 即可使用。',
+      'toast.progress.title': '正在安装 {name}…',
+      'toast.progress.body': '正在通过 DSH 插件管理器安装，首次安装通常需要几十秒。',
+      'toast.success.title': '已安装 {name}',
+      'toast.error.title': '安装失败：{name}',
+      'toast.version': '版本 {version} · {via}',
+      'toast.where': '在哪里使用',
+      'toast.applied': '已立即生效，刷新一下窗口就能看到入口。',
+      'toast.restart': '需要重启 DSH 后生效。',
+      'toast.gitOnly': '该插件只提供 GitHub 安装源，当前网络可能无法直连 GitHub；可以稍后重试，或在「插件」页手动安装。',
+      'toast.pending': '安装被构建脚本拦截：需要先在「插件」页允许这些脚本后重试（{list}）。',
+      'toast.buildBlocked': '这个插件安装时要执行构建脚本，被 pnpm 安全策略拦截；可在「插件」页允许脚本后重试。',
+      'toast.network': '网络无法访问安装源（GitHub 或 npm 可能不可达），请稍后重试。',
+      'toast.notFound': '安装源里没有找到可安装的版本，可能已被作者删除或改名。',
+      'toast.already': '这个插件已经安装过了，无需重复安装。',
+      'toast.notBundle': '该仓库不是可安装的 DSH 插件包（没有声明 bundle），可能只是一个目录或示例仓库。',
+      'toast.openGithub': '打开 GitHub',
+      'toast.openPlugins': '查看已安装插件',
+      'toast.close': '关闭',
     };
 
     /** English dictionaries. */
@@ -110,6 +136,32 @@ window.__ModuleLoader__.load({
       'source.auto': 'Auto tags',
       'synced.at': 'Last synced: {time}',
       'stale.warning': 'The last sync failed; showing the local cache: {error}',
+      'table.actions': 'Actions',
+      'action.install': 'Install',
+      'action.installing': 'Installing…',
+      'action.installed': 'Installed',
+      'action.installSource.npm': 'npm',
+      'action.installSource.git': 'GitHub',
+      'summary.installable': '{count} of them can be installed in one click from the npm registry.',
+      'footer.install': '“Install” asks the DSH plugin manager to add the plugin to this profile (npm source first). After it finishes, refresh the window or restart DSH as the notice says.',
+      'toast.progress.title': 'Installing {name}…',
+      'toast.progress.body': 'The DSH plugin manager is installing it; the first install usually takes a few dozen seconds.',
+      'toast.success.title': 'Installed {name}',
+      'toast.error.title': 'Install failed: {name}',
+      'toast.version': 'Version {version} · {via}',
+      'toast.where': 'Where to find it',
+      'toast.applied': 'Applied immediately — refresh the window to see the entry.',
+      'toast.restart': 'Restart DSH for it to take effect.',
+      'toast.gitOnly': 'This plugin only ships a GitHub install source, and GitHub may be unreachable on this network. Retry later or install it manually from the Plugins page.',
+      'toast.pending': 'The install was blocked by build scripts: allow them on the Plugins page and retry ({list}).',
+      'toast.buildBlocked': 'This plugin runs build scripts during install and pnpm blocked them; allow them on the Plugins page and retry.',
+      'toast.network': 'The install source is unreachable (GitHub or npm may be down); retry later.',
+      'toast.notFound': 'No installable version was found; the package may have been removed or renamed.',
+      'toast.already': 'This plugin is already installed.',
+      'toast.notBundle': 'This repository is not an installable DSH bundle (it declares no bundle patch); it may be a catalog or example repository.',
+      'toast.openGithub': 'Open GitHub',
+      'toast.openPlugins': 'Installed plugins',
+      'toast.close': 'Close',
     };
 
     const CSS = `
@@ -170,6 +222,28 @@ window.__ModuleLoader__.load({
 .pd-star{font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .pd-open{border:1px solid transparent;background:transparent;color:var(--dsw-alias-brand-primary,#2F6FED);font:inherit;font-size:11.5px;cursor:pointer;border-radius:6px;padding:2px 6px;text-decoration:none;display:inline-block;white-space:nowrap}
 .pd-open:hover{border-color:var(--dsw-alias-border-l1,#e4e8f0);background:var(--dsw-alias-bg-base,#fff)}
+.pd-rowactions{display:flex;align-items:center;gap:4px;justify-content:flex-end;flex-wrap:wrap}
+.pd-install{border:1px solid var(--dsw-alias-brand-primary,#2F6FED);background:color-mix(in srgb,var(--dsw-alias-brand-primary,#2F6FED) 8%,transparent);color:var(--dsw-alias-brand-primary,#2F6FED);border-radius:6px;padding:2px 9px;font:inherit;font-size:11.5px;cursor:pointer;white-space:nowrap}
+.pd-install:hover{background:color-mix(in srgb,var(--dsw-alias-brand-primary,#2F6FED) 18%,transparent)}
+.pd-install:disabled{opacity:.6;cursor:default}
+.pd-installed{font-size:11px;color:var(--dsw-alias-state-success-primary,#12B76A);border:1px solid color-mix(in srgb,var(--dsw-alias-state-success-primary,#12B76A) 40%,transparent);border-radius:6px;padding:2px 8px;white-space:nowrap}
+.pd-status{border:1px solid var(--dsw-alias-border-l1,#e4e8f0);border-left:4px solid var(--dsw-alias-brand-primary,#2F6FED);border-radius:10px;background:var(--dsw-alias-bg-layer-1,#fff);padding:12px 14px;font-size:12.5px;line-height:1.6;animation:pd-pop .18s ease-out}
+.pd-status.success{border-left-color:var(--dsw-alias-state-success-primary,#12B76A);background:color-mix(in srgb,var(--dsw-alias-state-success-primary,#12B76A) 5%,var(--dsw-alias-bg-layer-1,#fff))}
+.pd-status.error{border-left-color:var(--dsw-alias-state-error-primary,#B42318);background:color-mix(in srgb,var(--dsw-alias-state-error-primary,#B42318) 5%,var(--dsw-alias-bg-layer-1,#fff))}
+@keyframes pd-pop{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.pd-status-head{display:flex;align-items:flex-start;gap:8px}
+.pd-status-title{font-weight:600;font-size:13px;flex:1 1 auto;min-width:0;word-break:break-word}
+.pd-status-close{border:none;background:transparent;color:var(--dsw-alias-label-secondary,#667085);cursor:pointer;font-size:15px;line-height:1;padding:0 2px}
+.pd-status-body{margin-top:4px;color:var(--dsw-alias-label-secondary,#667085);word-break:break-word}
+.pd-status-meta{margin-top:2px;font-size:11.5px;color:var(--dsw-alias-label-secondary,#667085)}
+.pd-status-detail{margin-top:4px;font-size:11px;color:var(--dsw-alias-label-secondary,#667085);opacity:.8;word-break:break-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.pd-status-where{margin-top:8px;display:flex;flex-direction:column;gap:2px}
+.pd-status-where b{font-weight:500;color:var(--dsw-alias-label-primary,#101828)}
+.pd-status-where span{color:var(--dsw-alias-label-secondary,#667085);padding-left:10px;position:relative}
+.pd-status-where span:before{content:"·";position:absolute;left:0}
+.pd-status-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.pd-status-link{font-size:11.5px;color:var(--dsw-alias-brand-primary,#2F6FED);text-decoration:none;border:1px solid var(--dsw-alias-border-l1,#e4e8f0);border-radius:6px;padding:3px 9px;cursor:pointer;background:transparent;font-family:inherit}
+.pd-status-link:hover{background:var(--dsw-alias-bg-layer-2,#f4f6fa)}
 .pd-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between;padding:10px 12px;font-size:12px;color:var(--dsw-alias-label-secondary,#667085)}
 .pd-pager{display:flex;align-items:center;gap:6px}
 .pd-pager select{border:1px solid var(--dsw-alias-border-l1,#e4e8f0);border-radius:7px;padding:4px 6px;font:inherit;font-size:12px;background:var(--dsw-alias-bg-base,#fff);color:inherit}
@@ -270,6 +344,8 @@ window.__ModuleLoader__.load({
         zh: row[7] ?? '',
         en: row[8] ?? '',
         source: row[9] ?? '',
+        install: row[10] ?? '',
+        via: row[11] ?? '',
         url: `https://github.com/${row[1]}`,
       }));
     }
@@ -298,7 +374,106 @@ window.__ModuleLoader__.load({
       const [sort, setSort] = React.useState('catalog');
       const [pageSize, setPageSize] = React.useState(50);
       const [page, setPage] = React.useState(1);
+      const [installing, setInstalling] = React.useState(() => new Set());
+      const [installedFull, setInstalledFull] = React.useState(() => new Set());
+      const [installedBundles, setInstalledBundles] = React.useState([]);
+      const [toast, setToast] = React.useState(null);
       const alive = React.useRef(true);
+      const toastTimer = React.useRef(null);
+      const openPlugins = typeof props.openPlugins === 'function' ? props.openPlugins : null;
+
+      const showToast = React.useCallback((next, autoCloseMs) => {
+        if (toastTimer.current !== null) clearTimeout(toastTimer.current);
+        setToast(next);
+        if (autoCloseMs) toastTimer.current = setTimeout(() => setToast(null), autoCloseMs);
+      }, []);
+
+      React.useEffect(() => () => {
+        if (toastTimer.current !== null) clearTimeout(toastTimer.current);
+      }, []);
+
+      // Mark plugins that are already installed in this profile.
+      React.useEffect(() => {
+        let cancelled = false;
+        (async () => {
+          try {
+            const response = await fetch('/api/plugin-discovery/installed', { headers: { accept: 'application/json' }, cache: 'no-store' });
+            if (!response.ok) return;
+            const body = await response.json();
+            if (!cancelled && Array.isArray(body.bundles)) setInstalledBundles(body.bundles);
+          } catch {
+            /* the badge is best-effort */
+          }
+        })();
+        return () => { cancelled = true; };
+      }, []);
+
+      /**
+       * Whether one catalog row is already installed in this profile.
+       * @param {any} row normalized catalog row
+       * @returns {boolean} installed
+       */
+      const isInstalledRow = React.useCallback((row) => {
+        if (installedFull.has(row.full)) return true;
+        const spec = String(row.install ?? '').toLowerCase();
+        if (spec.length > 0) {
+          const base = spec.replace(/^(@[^/]+)\/([^@]+)@.*$/, '$1/$2').replace(/^([^@/]+)@.*$/, '$1');
+          if (installedBundles.some((bundle) => String(bundle.name ?? '').toLowerCase() === base)) return true;
+        }
+        const needle = String(row.full ?? '').toLowerCase();
+        return installedBundles.some((bundle) => String(bundle.source ?? '').toLowerCase().includes(needle));
+      }, [installedFull, installedBundles]);
+
+      /**
+       * Install one catalog plugin through the Host plugin manager.
+       * @param {any} row catalog row
+       * @returns {Promise<void>} completion
+       */
+      const installPlugin = React.useCallback(async (row) => {
+        if (installing.has(row.full)) return;
+        setInstalling((prev) => new Set(prev).add(row.full));
+        showToast({ kind: 'progress', full: row.full, name: row.name, url: row.url });
+        try {
+          const started = await fetch('/api/plugin-discovery/install', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', accept: 'application/json' },
+            body: JSON.stringify({ full: row.full }),
+          });
+          const startBody = await started.json().catch(() => ({}));
+          if (!started.ok || typeof startBody.jobId !== 'string') throw new Error(startBody.error ?? `HTTP ${started.status}`);
+          const deadline = Date.now() + 5 * 60 * 1000;
+          let result = null;
+          while (Date.now() < deadline) {
+            await new Promise((resolve) => setTimeout(resolve, 1500));
+            const status = await fetch(`/api/plugin-discovery/install/status?id=${encodeURIComponent(startBody.jobId)}`, { cache: 'no-store' });
+            const statusBody = await status.json().catch(() => ({}));
+            if (!status.ok) throw new Error(statusBody.error ?? `HTTP ${status.status}`);
+            if (statusBody.status === 'done') { result = statusBody.result; break; }
+          }
+          if (result === null) throw new Error('安装超时，请稍后在「插件」页查看结果');
+          if (result.ok) {
+            setInstalledFull((prev) => new Set(prev).add(row.full));
+            try {
+              const refreshed = await fetch('/api/plugin-discovery/installed', { cache: 'no-store' });
+              const refreshedBody = await refreshed.json();
+              if (Array.isArray(refreshedBody.bundles)) setInstalledBundles(refreshedBody.bundles);
+            } catch {
+              /* badge refresh is best-effort */
+            }
+            showToast({ kind: 'success', full: row.full, name: row.name, url: row.url, result });
+          } else {
+            showToast({ kind: 'error', full: row.full, name: row.name, url: row.url, result });
+          }
+        } catch (cause) {
+          showToast({ kind: 'error', full: row.full, name: row.name, url: row.url, result: { ok: false, error: cause instanceof Error ? cause.message : String(cause) } });
+        } finally {
+          setInstalling((prev) => {
+            const next = new Set(prev);
+            next.delete(row.full);
+            return next;
+          });
+        }
+      }, [installing, showToast]);
 
       React.useEffect(() => {
         alive.current = true;
@@ -484,6 +659,9 @@ window.__ModuleLoader__.load({
               `最近 30 天有 ${(stats.recent30 ?? 0).toLocaleString('zh-CN')} 个项目保持更新。`,
             )
           : null,
+        (stats.installable ?? 0) > 0
+          ? h('p', { className: 'pd-note', style: { margin: '4px 0 0' } }, t('summary.installable', { count: (stats.installable ?? 0).toLocaleString('zh-CN') }))
+          : null,
         categories.length > 0
           ? h(
               'div',
@@ -565,7 +743,7 @@ window.__ModuleLoader__.load({
             h('col', { style: { width: 78 } }),
             h('col', { style: { width: 74 } }),
             h('col', { style: { width: 92 } }),
-            h('col', { style: { width: 64 } }),
+            h('col', { style: { width: 158 } }),
           ),
           h(
             'thead',
@@ -580,7 +758,7 @@ window.__ModuleLoader__.load({
               h('th', null, t('table.language')),
               h('th', null, t('table.stars')),
               h('th', null, t('table.updated')),
-              h('th', null, ''),
+              h('th', null, t('table.actions')),
             ),
           ),
           h(
@@ -625,16 +803,35 @@ window.__ModuleLoader__.load({
                       'td',
                       null,
                       h(
-                        'a',
-                        {
-                          className: 'pd-open',
-                          href: row.url,
-                          target: '_blank',
-                          rel: 'noopener noreferrer',
-                          onClick: (event) => event.stopPropagation(),
-                          title: t('action.open'),
-                        },
-                        `${t('action.open')} ↗`,
+                        'div',
+                        { className: 'pd-rowactions' },
+                        h(
+                          'a',
+                          {
+                            className: 'pd-open',
+                            href: row.url,
+                            target: '_blank',
+                            rel: 'noopener noreferrer',
+                            onClick: (event) => event.stopPropagation(),
+                            title: t('action.open'),
+                          },
+                          `${t('action.open')} ↗`,
+                        ),
+                        isInstalledRow(row)
+                          ? h('span', { className: 'pd-installed' }, `✓ ${t('action.installed')}`)
+                          : h(
+                              'button',
+                              {
+                                className: 'pd-install',
+                                disabled: installing.has(row.full) || installing.size > 0,
+                                title: row.install ? `${t('action.install')} · ${row.via === 'npm' ? t('action.installSource.npm') : t('action.installSource.git')}` : t('action.install'),
+                                onClick: (event) => {
+                                  event.stopPropagation();
+                                  void installPlugin(row);
+                                },
+                              },
+                              installing.has(row.full) ? t('action.installing') : t('action.install'),
+                            ),
                       ),
                     ),
                   ),
@@ -660,6 +857,68 @@ window.__ModuleLoader__.load({
         ),
       );
 
+      /**
+       * Build the install status card shown above the table.
+       * @returns {any} status card element or null
+       */
+      const renderInstallStatus = () => {
+        if (toast === null) return null;
+        const result = toast.result ?? null;
+        const isProgress = toast.kind === 'progress';
+        const isSuccess = toast.kind === 'success';
+        const title = isProgress
+          ? t('toast.progress.title', { name: toast.name })
+          : isSuccess
+            ? t('toast.success.title', { name: result?.title || toast.name })
+            : t('toast.error.title', { name: toast.name });
+        const body = isProgress
+          ? t('toast.progress.body')
+          : isSuccess
+            ? result?.description || ''
+            : (result?.error || '');
+        const guidance = [];
+        if (isSuccess && result) {
+          if (Array.isArray(result.hints) && result.hints.length > 0) guidance.push({ label: t('toast.where'), items: result.hints });
+          guidance.push({ label: '', items: [result.applied ? t('toast.applied') : t('toast.restart')] });
+        } else if (!isProgress) {
+          if (result?.problem === 'already-installed') guidance.push({ label: '', items: [t('toast.already')] });
+          else if (result?.problem === 'not-bundle') guidance.push({ label: '', items: [t('toast.notBundle')] });
+          else if (result?.reason === 'unknown' && result?.via === 'git') guidance.push({ label: '', items: [t('toast.gitOnly')] });
+          if (Array.isArray(result?.pendingBuilds) && result.pendingBuilds.length > 0) {
+            guidance.push({ label: '', items: [t('toast.pending', { list: result.pendingBuilds.join(', ') })] });
+          }
+        }
+        const actions = [];
+        if (toast.url) actions.push(h('a', { key: 'gh', className: 'pd-status-link', href: toast.url, target: '_blank', rel: 'noopener noreferrer' }, `${t('toast.openGithub')} ↗`));
+        if (isSuccess && openPlugins !== null) actions.push(h('button', { key: 'plugins', className: 'pd-status-link', onClick: () => openPlugins() }, t('toast.openPlugins')));
+        actions.push(h('button', { key: 'close', className: 'pd-status-link', onClick: () => setToast(null) }, t('toast.close')));
+        return h(
+          'div',
+          { className: `pd-status ${isProgress ? 'progress' : isSuccess ? 'success' : 'error'}`, role: 'status', 'aria-live': 'polite' },
+          h(
+            'div',
+            { className: 'pd-toast-head' },
+            isProgress ? h('i', { className: 'pd-spin', style: { marginTop: 3 } }) : null,
+            h('div', { className: 'pd-status-title' }, title),
+            h('button', { className: 'pd-status-close', onClick: () => setToast(null), 'aria-label': t('toast.close') }, '×'),
+          ),
+          body ? h('div', { className: 'pd-status-body' }, body) : null,
+          !isProgress && result?.detail ? h('div', { className: 'pd-status-detail' }, String(result.detail).slice(0, 260)) : null,
+          isSuccess && result?.version
+            ? h('div', { className: 'pd-status-meta' }, t('toast.version', { version: result.version, via: result.via === 'npm' ? t('action.installSource.npm') : t('action.installSource.git') }))
+            : null,
+          guidance.map((group, index) =>
+            h(
+              'div',
+              { className: 'pd-status-where', key: `g${index}` },
+              group.label ? h('b', null, group.label) : null,
+              ...group.items.map((item, itemIndex) => h('span', { key: `i${itemIndex}` }, `· ${item}`)),
+            ),
+          ),
+          h('div', { className: 'pd-status-actions' }, ...actions),
+        );
+      };
+
       return h(
         'div',
         { className: 'pd-root' },
@@ -676,12 +935,14 @@ window.__ModuleLoader__.load({
             summaryCard,
             h('div', { className: 'pd-chips' }, chips),
             toolbar,
+            renderInstallStatus(),
             table,
             h(
               'div',
               { className: 'pd-note' },
               h('div', null, t('footer.source'), ' · ', h('a', { href: 'https://github.com/bruc3van/awesome-dsh-plugin', target: '_blank', rel: 'noreferrer' }, 'bruc3van/awesome-dsh-plugin')),
               h('div', null, t('footer.legend')),
+              h('div', null, t('footer.install')),
             ),
           ),
         ),
@@ -720,9 +981,18 @@ window.__ModuleLoader__.load({
         name: 'main',
         key: PANEL_ID,
         locale: NS,
+        inject: () => ({
+          openPlugins: () => {
+            try {
+              ctx.layout.selectPanel('plugins');
+            } catch (error) {
+              console.error('plugin-discovery: cannot open the plugins panel', error);
+            }
+          },
+        }),
       }, DiscoveryPage)), 'plugin-discovery: main panel');
     }
 
-    return { inject: ['slots', 'locale'], apply, DiscoveryPage, DiscoveryIcon };
+    return { inject: ['slots', 'locale', 'layout'], apply, DiscoveryPage, DiscoveryIcon };
   },
 });

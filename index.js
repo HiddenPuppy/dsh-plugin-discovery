@@ -137,14 +137,16 @@ async function fetchText(path) {
 }
 
 /**
- * Read a gzipped tar archive and keep only the catalog volumes.
+ * Read a gzipped tar archive and keep the catalog volumes plus the install-target map.
  * @param {Uint8Array} buffer gzipped tar
- * @returns {Map<string, string>} volume file name → text
+ * @returns {{ volumes: Map<string, string>, packages: any }} catalog data
  */
-export function readCatalogFromTar(buffer) {
+export function readArchive(buffer) {
   const tar = gunzipSync(buffer);
   /** @type {Map<string, string>} */
-  const files = new Map();
+  const volumes = new Map();
+  /** @type {any} */
+  let packages;
   let offset = 0;
   while (offset + 512 <= tar.length) {
     const header = tar.subarray(offset, offset + 512);
@@ -155,18 +157,35 @@ export function readCatalogFromTar(buffer) {
     const prefix = header.subarray(345, 500).toString('utf8').replace(/\0.*$/, '');
     const full = prefix.length > 0 ? `${prefix}/${name}` : name;
     const bodyStart = offset + 512;
-    const marker = full.lastIndexOf(CATALOG_DIR);
-    if (size > 0 && marker !== -1 && /\/catalog\/[^/]+\.md$/.test(full)) {
-      files.set(full.slice(marker + CATALOG_DIR.length), tar.subarray(bodyStart, bodyStart + size).toString('utf8'));
+    if (size > 0) {
+      const marker = full.lastIndexOf(CATALOG_DIR);
+      if (marker !== -1 && /\/catalog\/[^/]+\.md$/.test(full)) {
+        volumes.set(full.slice(marker + CATALOG_DIR.length), tar.subarray(bodyStart, bodyStart + size).toString('utf8'));
+      } else if (full.endsWith('data/packages.json')) {
+        try {
+          packages = JSON.parse(tar.subarray(bodyStart, bodyStart + size).toString('utf8'));
+        } catch {
+          packages = undefined;
+        }
+      }
     }
     offset = bodyStart + Math.ceil(size / 512) * 512;
   }
-  return files;
+  return { volumes, packages };
 }
 
 /**
- * Download the repository archive and read every catalog volume from it.
- * @returns {Promise<Map<string, string>>} volume file name → text
+ * Read only the catalog volumes from a gzipped tar archive.
+ * @param {Uint8Array} buffer gzipped tar
+ * @returns {Map<string, string>} volume file name → text
+ */
+export function readCatalogFromTar(buffer) {
+  return readArchive(buffer).volumes;
+}
+
+/**
+ * Download the repository archive and read the catalog data from it.
+ * @returns {Promise<{ volumes: Map<string, string>, packages: any }>} catalog data
  */
 async function loadArchive() {
   const candidates = [ARCHIVE_URL, ...MIRROR_PREFIXES.map((prefix) => prefix + ARCHIVE_URL)];
@@ -174,9 +193,9 @@ async function loadArchive() {
   for (const url of candidates) {
     try {
       const response = await request(url, ARCHIVE_TIMEOUT_MS, 'application/gzip');
-      const files = readCatalogFromTar(new Uint8Array(await response.arrayBuffer()));
-      if (files.size === 0) throw new Error('archive contains no catalog volumes');
-      return files;
+      const archive = readArchive(new Uint8Array(await response.arrayBuffer()));
+      if (archive.volumes.size === 0) throw new Error('archive contains no catalog volumes');
+      return archive;
     } catch (error) {
       lastError = error;
     }
@@ -199,21 +218,45 @@ export function parseVolumeIndex(indexText) {
 }
 
 /**
- * Download the catalog index and every volume it lists, one request per file.
- * @returns {Promise<Map<string, string>>} volume file name → text
+ * Download the catalog index, every volume it lists and the install-target map,
+ * one request per file through the mirror chain.
+ * @returns {Promise<{ volumes: Map<string, string>, packages: any }>} catalog data
  */
 async function loadVolumes() {
   const index = await fetchText(INDEX_FILE);
   const names = parseVolumeIndex(index.text);
   if (names.length === 0) throw new Error('目录索引中没有找到分类分册');
-  /** @type {Map<string, string>} */
-  const files = new Map();
-  for (const name of names) {
-    const file = await fetchText(`${CATALOG_DIR}${name}`);
-    files.set(name, file.text);
+  const volumes = new Map(
+    await Promise.all(names.map(async (name) => /** @type {[string, string]} */ ([name, (await fetchText(`${CATALOG_DIR}${name}`)).text]))),
+  );
+  let packages;
+  try {
+    packages = JSON.parse((await fetchText('data/packages.json')).text);
+  } catch {
+    packages = undefined;
   }
-  return files;
+  return { volumes, packages };
 }
+
+/**
+ * Normalize one `data/packages.json` entry into the install spec the UI offers.
+ * npm specs win because they do not depend on GitHub being reachable.
+ * @param {any} value packages.json entry for one repository
+ * @returns {{ spec: string, via: 'npm' | 'git', command?: string } | null} install target
+ */
+export function normalizeInstall(value) {
+  const packages = Array.isArray(value?.packages) ? value.packages : [];
+  const specs = packages
+    .map((entry) => (typeof entry?.install === 'string' ? entry.install.trim() : ''))
+    .filter((spec) => spec.length > 0);
+  if (specs.length === 0) return null;
+  const isGitSpec = (spec) => /^(https?:\/\/|git\+|github:|gitlab:|bitbucket:|file:|link:|workspace:)/i.test(spec) || spec.includes('#path:');
+  const npm = specs.find((spec) => !isGitSpec(spec));
+  const spec = npm ?? specs[0];
+  const command = packages.find((entry) => entry?.install === spec)?.command;
+  return { spec, via: npm ? 'npm' : 'git', ...(typeof command === 'string' ? { command } : {}) };
+}
+
 
 /**
  * Split one markdown table line into trimmed cells, honouring `\|` escapes.
@@ -354,9 +397,10 @@ export function autoSummary(short, categoryZh, language) {
  * Normalize the catalog volumes plus the AI Chinese cache into the feed the browser renders.
  * @param {{ name: string, text: string }[]} files volume files
  * @param {Record<string, string> | undefined} aiZh AI-generated Chinese descriptions
+ * @param {any} [packageEntries] `data/packages.json` install-target map
  * @returns {object} feed payload
  */
-export function buildCatalog(files, aiZh) {
+export function buildCatalog(files, aiZh, packageEntries) {
   const items = [];
   const categoryCounts = new Map();
   /** @type {Map<string, { key: string, zh: string, en: string }>} */
@@ -367,7 +411,14 @@ export function buildCatalog(files, aiZh) {
   const thirtyDays = 30 * 24 * 60 * 60 * 1000;
   let recent30 = 0;
   let starred1k = 0;
+  let installable = 0;
   const seen = new Set();
+  /** @type {Map<string, { spec: string, via: 'npm' | 'git' }>} */
+  const installs = new Map();
+  for (const [full, value] of Object.entries(packageEntries?.entries ?? {})) {
+    const install = normalizeInstall(value);
+    if (install !== null) installs.set(full.toLowerCase(), install);
+  }
 
   for (const file of files) {
     const title = parseVolumeTitle(file.text);
@@ -399,6 +450,9 @@ export function buildCatalog(files, aiZh) {
         zhSource = 'auto';
       }
 
+      const install = installs.get(row.full.toLowerCase());
+      if (install?.via === 'npm') installable += 1;
+
       items.push([
         short,
         row.full,
@@ -410,6 +464,8 @@ export function buildCatalog(files, aiZh) {
         zh,
         row.description,
         zhSource,
+        install?.spec ?? '',
+        install?.via ?? '',
       ]);
     }
   }
@@ -434,6 +490,7 @@ export function buildCatalog(files, aiZh) {
       total: items.length,
       recent30,
       starred1k,
+      installable,
       languages: languages.size,
       categories: categoryList.length,
     },
@@ -454,9 +511,9 @@ async function refreshNow() {
   } catch {
     aiZh = undefined;
   }
-  const files = await loadArchive().catch(() => loadVolumes());
-  const volumes = [...files.entries()].map(([name, text]) => ({ name, text }));
-  const payload = buildCatalog(volumes, aiZh);
+  const archive = await loadArchive().catch(() => loadVolumes());
+  const volumes = [...archive.volumes.entries()].map(([name, text]) => ({ name, text }));
+  const payload = buildCatalog(volumes, aiZh, archive.packages);
   if (payload.items.length === 0) throw new Error('上游目录没有解析出任何插件');
   state.payload = payload;
   state.at = Date.now();
@@ -539,6 +596,165 @@ function statusOf() {
 }
 
 /**
+ * Install jobs survive long pnpm runs outside the request that started them, so
+ * the browser can poll for progress instead of holding one HTTP request open.
+ * @type {Map<string, { id: string, full: string, spec: string, via: string, status: 'running' | 'done', startedAt: number, finishedAt?: number, result: any }>}
+ */
+const installJobs = new Map();
+let installSequence = 0;
+/** Finished job results are kept this long for polling clients. */
+const INSTALL_RESULT_TTL_MS = 10 * 60 * 1000;
+
+/**
+ * Pick the best string out of a localized text value.
+ * @param {any} value string or locale → string map
+ * @returns {string} display text
+ */
+function localized(value) {
+  if (typeof value === 'string') return value;
+  if (value === null || typeof value !== 'object') return '';
+  return value.zh ?? value['zh-CN'] ?? value.en ?? Object.values(value).find((entry) => typeof entry === 'string') ?? '';
+}
+
+/**
+ * Turn pnpm's verbose failure into one short, actionable message.
+ * @param {string} raw package-manager output or diagnostic
+ * @param {string[] | undefined} pendingBuilds build scripts pnpm refused to run
+ * @returns {{ reason: string, message: string, detail: string }} classified failure
+ */
+export function classifyInstallError(raw, pendingBuilds) {
+  const text = String(raw ?? '');
+  const detail = text.replace(/\s+/g, ' ').trim().slice(0, 400);
+  if (Array.isArray(pendingBuilds) && pendingBuilds.length > 0) {
+    return {
+      reason: 'build-blocked',
+      message: `安装被构建脚本拦截：需要先在「插件」页允许这些脚本后重试（${pendingBuilds.join(', ')}）`,
+      detail,
+    };
+  }
+  if (/GIT_DEP_PREPARE_NOT_ALLOWED|prepare[^.]{0,40}(?:not allowed|blocked)|build scripts? (?:are )?(?:not allowed|blocked)/i.test(text)) {
+    return { reason: 'build-blocked', message: '安装需要执行构建脚本，被 pnpm 的安全策略拦截；请到「插件」页允许后重试', detail };
+  }
+  if (/ETIMEDOUT|ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|fetch failed|network|socket hang up|timed? ?out/i.test(text)) {
+    return { reason: 'network', message: '网络无法访问安装源（GitHub 或 npm 可能不可达），请稍后重试', detail };
+  }
+  if (/404|not found|NO_MATCHING_VERSION|No matching version/i.test(text)) {
+    return { reason: 'not-found', message: '安装源里没有找到可安装的版本，可能已被作者删除或改名', detail };
+  }
+  if (/integrity|TARBALL|checksum/i.test(text)) {
+    return { reason: 'integrity', message: '下载内容校验失败，请重试', detail };
+  }
+  const firstError = text.split('\n').map((line) => line.trim()).find((line) => /ERR_|error|failed/i.test(line)) ?? '';
+  return { reason: 'unknown', message: (firstError || '安装失败').slice(0, 220), detail };
+}
+
+/**
+ * Explain where an installed bundle shows up, from the rows it declares.
+ * @param {any} bundle bundle info from `listBundles`, when available
+ * @param {any} change install result
+ * @returns {{ hints: string[], applied: boolean }} placement hints
+ */
+function describePlacement(bundle, change) {
+  const rows = (bundle?.rows ?? [])
+    .map((row) => `${row?.rowId ?? ''} ${row?.moduleName ?? ''}`)
+    .join(' ')
+    .toLowerCase();
+  const description = `${localized(bundle?.meta?.title)} ${localized(bundle?.meta?.description)}`.toLowerCase();
+  const hints = [];
+  if (/notif|toast|alert|remind|提醒|通知/.test(rows + description)) hints.push('需要时会在界面通知 / 系统通知里提醒你（可在「设置 → 插件」里调整）');
+  if (/theme|skin|appearance|主题|皮肤|配色/.test(rows + description)) hints.push('在「设置 → 外观 / 主题」里选择它');
+  if (/client-ui|ui-|sidebar|panel|widget|侧边栏|面板|界面/.test(rows + description)) hints.push('刷新窗口后，在 DSH 界面（侧边栏 / 设置 / 面板）中查看');
+  if (/tool-|tools?\b|工具/.test(rows + description)) hints.push('在对话里让 Agent 调用它提供的工具');
+  if (/command-|斜杠命令/.test(rows + description)) hints.push('在输入框输入它注册的斜杠命令（输入 / 可查看）');
+  if (/skill-|技能/.test(rows + description)) hints.push('作为 Skill 在对话中被触发');
+  if (/provider|llm-|web-search|web-fetch|搜索|模型/.test(rows + description)) hints.push('在「设置 → 模型 / 网页搜索」里选择它');
+  if (/agent-preset|preset|预设/.test(rows + description)) hints.push('在新建会话的 Agent 预设里选择它');
+  if (hints.length === 0) hints.push('刷新窗口后查看左侧栏与「设置 → 插件」，多数插件会在这些位置出现');
+  const applied = change?.application === 'applied';
+  return { hints, applied };
+}
+
+/**
+ * Install one catalog entry through the profile's plugin manager.
+ * @param {any} ctx Host context
+ * @param {{ id: string, full: string, spec: string, via: string, status: string, startedAt: number, result: any }} job install job
+ * @returns {Promise<void>} completion
+ */
+async function runInstallJob(ctx, job) {
+  const manager = ctx.get('pluginManager');
+  if (manager === undefined) {
+    job.result = { ok: false, stage: 'manager', error: '当前 profile 没有可用的插件管理器（pluginManager 服务未加载）', install: job.spec, via: job.via };
+    return;
+  }
+  try {
+    const inspection = await manager.inspect(job.spec, undefined, AbortSignal.timeout(45 * 1000));
+    if (inspection.status === 'refused') {
+      const already = inspection.problem === 'already-installed';
+      job.result = {
+        ok: false,
+        stage: 'inspect',
+        problem: inspection.problem,
+        error: already ? '这个插件已经安装过了' : inspection.reason || '这个插件没有可用的安装来源',
+        install: job.spec,
+        via: job.via,
+      };
+      return;
+    }
+    if (inspection.bundle === false) {
+      job.result = { ok: false, stage: 'inspect', problem: 'not-bundle', error: '该仓库不是可安装的 DSH 插件包（package.json 里没有声明 dsh.bundle）', install: job.spec, via: job.via };
+      return;
+    }
+    const change = await manager.installBundle(job.spec, { enabled: true });
+    if (change.application === 'failed') {
+      const pending = Array.isArray(change.pendingBuilds) && change.pendingBuilds.length > 0 ? change.pendingBuilds : undefined;
+      const raw = change.error?.diagnostic ?? change.packageResult?.output ?? change.error?.code ?? '安装失败';
+      const classified = classifyInstallError(raw, pending);
+      job.result = {
+        ok: false,
+        stage: 'install',
+        reason: classified.reason,
+        error: classified.message,
+        detail: classified.detail,
+        pendingBuilds: pending,
+        install: job.spec,
+        via: job.via,
+      };
+      return;
+    }
+    let bundleInfo;
+    try {
+      const bundles = await manager.listBundles();
+      const name = change.bundle ?? inspection.name;
+      bundleInfo = bundles.find((bundle) => bundle.name === name);
+    } catch {
+      bundleInfo = undefined;
+    }
+    const placement = describePlacement(bundleInfo, change);
+    job.result = {
+      ok: true,
+      bundle: change.bundle ?? inspection.name,
+      version: change.version ?? inspection.version,
+      application: change.application,
+      restartReason: change.restartReason,
+      title: localized(bundleInfo?.meta?.title) || change.bundle || inspection.name || job.full,
+      description: localized(bundleInfo?.meta?.description) || inspection.description || '',
+      hints: placement.hints,
+      applied: placement.applied,
+      install: job.spec,
+      via: job.via,
+    };
+  } catch (error) {
+    job.result = { ok: false, stage: 'install', error: error instanceof Error ? error.message : String(error), install: job.spec, via: job.via };
+  } finally {
+    job.status = 'done';
+    job.finishedAt = Date.now();
+    for (const [key, value] of installJobs) {
+      if (value.status === 'done' && Date.now() - (value.finishedAt ?? value.startedAt) > INSTALL_RESULT_TTL_MS) installJobs.delete(key);
+    }
+  }
+}
+
+/**
  * Register the plugin's authenticated routes.
  * @param {any} ctx Host context carrying `connection`
  */
@@ -576,6 +792,72 @@ function registerRoutes(ctx) {
     fetch: async () => {
       await loadPersisted();
       return json(statusOf());
+    },
+  });
+
+  ctx.connection.fetch.register({
+    path: '/api/plugin-discovery/install',
+    methods: ['POST'],
+    requestBody: 'buffered',
+    fetch: async (request) => {
+      try {
+        const body = await request.json().catch(() => ({}));
+        const full = typeof body?.full === 'string' ? body.full.trim() : '';
+        if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(full)) return json({ error: '无效的仓库名' }, 400);
+        await loadPersisted();
+        const item = state.payload?.items?.find((row) => row[1] === full);
+        const spec = (item && typeof item[10] === 'string' && item[10].length > 0 ? item[10] : '') || `https://github.com/${full}`;
+        const via = (item && typeof item[11] === 'string' && item[11].length > 0 ? item[11] : '') || 'git';
+        for (const job of installJobs.values()) {
+          if (job.status === 'running' && job.full === full) return json({ jobId: job.id });
+          if (job.status === 'running') return json({ error: '已有另一个安装任务正在进行，请等它完成后再试' }, 409);
+        }
+        const id = `${Date.now().toString(36)}-${(installSequence += 1)}`;
+        const job = { id, full, spec, via, status: /** @type {'running'} */ ('running'), startedAt: Date.now(), result: null };
+        installJobs.set(id, job);
+        void runInstallJob(ctx, job);
+        return json({ jobId: id, spec, via });
+      } catch (error) {
+        return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+      }
+    },
+  });
+
+  ctx.connection.fetch.register({
+    path: '/api/plugin-discovery/install/status',
+    methods: ['GET'],
+    requestBody: 'buffered',
+    fetch: async (request) => {
+      const url = new URL(request.url, 'http://localhost');
+      const id = url.searchParams.get('id') ?? '';
+      const job = installJobs.get(id);
+      if (job === undefined) return json({ error: '安装任务不存在或已过期' }, 404);
+      return json({ id: job.id, full: job.full, status: job.status, result: job.result });
+    },
+  });
+
+  ctx.connection.fetch.register({
+    path: '/api/plugin-discovery/installed',
+    methods: ['GET'],
+    requestBody: 'buffered',
+    fetch: async () => {
+      const manager = ctx.get('pluginManager');
+      if (manager === undefined) return json({ bundles: [] });
+      try {
+        const bundles = await manager.listBundles();
+        return json({
+          bundles: bundles
+            .filter((bundle) => bundle.installed === true)
+            .map((bundle) => ({
+              name: bundle.name,
+              version: bundle.version,
+              source: bundle.source,
+              enabled: bundle.enabled,
+            })),
+        });
+      } catch (error) {
+        return json({ bundles: [], error: error instanceof Error ? error.message : String(error) });
+      }
     },
   });
 }

@@ -2,19 +2,21 @@
 
 [**English**](README.md) | [中文](README.zh.md)
 
-> A **Plugin Discovery** page under the DSH sidebar (below *Automations*): the complete GitHub-hosted DSH plugin marketplace, with 23k+ plugins and a one-sentence Chinese description for every project.
+> A **Plugin Discovery** page under the DSH sidebar (below *Automations*): the complete GitHub-hosted DSH plugin marketplace, with 24k+ plugins, a one-sentence Chinese description for every project, GitHub README links and one-click installation.
 
 ![Plugin Discovery screenshot](docs/screenshot.png)
 
 ## What it does
 
-- **The full catalog**: syncs the community-maintained DSH plugin catalog on GitHub (every repository verified under the `dsh-plugin` topic — **23,659** right now) and groups it into the same 10 categories the upstream catalog uses.
+- **The full catalog**: syncs the community-maintained DSH plugin catalog on GitHub (every repository verified under the `dsh-plugin` topic — **24,075** right now) and groups it into the same 10 categories the upstream catalog uses.
 - **A Chinese description for every project**: one sentence explaining what each plugin does. Repository-provided Chinese comes first, then an AI-generated Chinese summary bundled with this repo; newly listed projects get an automatic Chinese category summary until translated, with the original English description kept below.
 - **Head-category filters**: only the 6 head categories become filter chips; the long tail folds into *Other*.
 - **Three sort modes**: catalog order (default), most stars, recently updated — plus keyword search and 50 / 100 / 200 rows per page.
 - **Refreshes on every open**: paints instantly from a local cache, syncs the latest catalog in the background, then swaps in the new data. The **Refresh** button in the corner forces a sync.
 - **Ecosystem overview**: plugin count, categories, languages, projects updated in the last 30 days, an auto-generated Chinese summary, and a category distribution bar.
-- Click any row or **Open project ↗** to jump to the plugin's GitHub repository.
+- **Open the project**: clicking a row (or **Open project ↗**) opens the plugin's GitHub page so you can read its README before installing.
+- **One-click install**: every row has an **Install** button. It asks the DSH plugin manager to add that plugin to this profile, preferring the catalog's npm install target (639 plugins have one) and falling back to the GitHub repository. While it runs the page shows progress; when it finishes an inline status card says **whether it worked**, the installed version and **roughly where to find it** (sidebar / settings / agent tools / slash commands / notifications …), plus how to fix common failures (build scripts blocked, network unreachable, already installed, not a bundle).
+- **Installed markers**: plugins already present in this profile show **✓ Installed** instead of the install button.
 
 ## Install
 
@@ -66,6 +68,9 @@ The Host half registers two routes on DSH's authenticated API channel:
 
 - `GET /api/plugin-discovery/feed` — the normalized catalog; `?refresh=1` starts a background refresh, `?wait=1` waits for the in-flight refresh before responding
 - `GET /api/plugin-discovery/meta` — sync status (last sync time, refreshing, error message)
+- `POST /api/plugin-discovery/install` — starts installing one catalog repository through `ctx.pluginManager`; returns a job id
+- `GET /api/plugin-discovery/install/status?id=…` — job state and the final install result (friendly error + placement hints)
+- `GET /api/plugin-discovery/installed` — bundles already installed in this profile (for the ✓ marker)
 
 The browser never talks to GitHub directly: download, parsing, classification and caching all happen in the Host; the browser only renders the result.
 
@@ -83,5 +88,6 @@ MIT
 
 ## Changelog
 
+- **1.2.0** — One-click install: each row gains an **Install** button that installs the plugin into the current DSH profile through the plugin manager (npm install target first), then reports success/failure, the installed version and where to find it. Already-installed plugins are marked ✓. Failures are classified into actionable messages (build scripts blocked, network unreachable, already installed, not a DSH bundle). Catalog now lists 24,075 plugins.
 - **1.1.0** — Fixed the Refresh button failing with `upstream 404` whenever the upstream catalog renamed or split its volume files. Volume names are now discovered at runtime (repository archive first, then `CATALOG.md` + per-file mirror chain), so the page keeps refreshing as the catalog grows. Catalog now lists 23,659 plugins.
 - **1.0.0** — First release.
