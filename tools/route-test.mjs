@@ -46,7 +46,10 @@ const fakeManager = {
     if (inspectMode === 'missing') return { status: 'refused', problem: 'not-found', reason: 'not found' };
     return { status: 'accepted', kind: 'npm', name: '@demo/dsh-demo', version: '1.2.3', bundle: true, registry: null };
   },
-  async installBundle() {
+  async installBundle(spec, options) {
+    if (!Array.isArray(options?.approvedBuilds) || options.approvedBuilds.length === 0) {
+      return { changed: false, application: 'failed', stage: 'install', target: spec, pendingBuilds: ['esbuild'], error: { diagnostic: 'Ignored build scripts: esbuild' } };
+    }
     return { changed: true, application: 'applied', stage: 'install', target: '@demo/dsh-demo', bundle: '@demo/dsh-demo', version: '1.2.3' };
   },
   async listBundles() {
@@ -101,6 +104,34 @@ for (let i = 0; i < 50; i += 1) {
   if (refused.status === 'done') break;
 }
 console.log('refused result', refused.result);
+
+// approve-and-retry: the failed job reports pending build scripts, approve retries with them
+inspectMode = 'accepted';
+const failStart = await (await routes.get('/api/plugin-discovery/install')(new Request('http://localhost/api/plugin-discovery/install', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ full: 'demo/build-demo' }),
+}))).json();
+let failedJob;
+for (let i = 0; i < 50; i += 1) {
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  failedJob = await (await routes.get('/api/plugin-discovery/install/status')(new Request(`http://localhost/api/plugin-discovery/install/status?id=${failStart.jobId}`))).json();
+  if (failedJob.status === 'done') break;
+}
+console.log('failed job', failedJob.result?.ok, failedJob.result?.reason, failedJob.result?.pendingBuilds);
+const approveStart = await (await routes.get('/api/plugin-discovery/install/approve')(new Request('http://localhost/api/plugin-discovery/install/approve', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ full: 'demo/build-demo' }),
+}))).json();
+console.log('approve start', approveStart);
+let approved;
+for (let i = 0; i < 50; i += 1) {
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  approved = await (await routes.get('/api/plugin-discovery/install/status')(new Request(`http://localhost/api/plugin-discovery/install/status?id=${approveStart.jobId}`))).json();
+  if (approved.status === 'done') break;
+}
+console.log('approved job', approved.result?.ok, approved.result?.bundle, approved.result?.application);
 
 // invalid repo name
 const bad = await routes.get('/api/plugin-discovery/install')(new Request('http://localhost/api/plugin-discovery/install', {

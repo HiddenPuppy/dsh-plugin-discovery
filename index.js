@@ -61,6 +61,14 @@ const PACKAGE_DIR = dirname(fileURLToPath(import.meta.url));
 const CACHE_DIR = join(process.env.DSH_HOME || join(homedir(), '.dsh'), 'cache', 'plugin-discovery');
 const CACHE_FILE = join(CACHE_DIR, 'feed.json');
 const AI_ZH_FILE = join(PACKAGE_DIR, 'zh-descriptions.json');
+/** Remembers which repository an installed bundle came from, for the ✓ marker. */
+const ALIAS_FILE = join(CACHE_DIR, 'install-aliases.json');
+/** Registries asked when a GitHub source cannot be prepared and an npm package may exist. */
+const NPM_REGISTRIES = ['https://registry.npmjs.org', 'https://registry.npmmirror.com'];
+/** Current profile directory: its pnpm-workspace.yaml stores build-script approvals. */
+const PROFILE_DIR =
+  process.env.DSH_PROFILE_DIR ||
+  join(process.env.DSH_HOME || join(homedir(), '.dsh'), 'profiles', process.env.DSH_PROFILE || 'desktop');
 
 /** Stable category keys, matched on the (suffix-stripped) English volume title. */
 const CATEGORY_KEYS = new Map([
@@ -628,12 +636,21 @@ export function classifyInstallError(raw, pendingBuilds) {
   if (Array.isArray(pendingBuilds) && pendingBuilds.length > 0) {
     return {
       reason: 'build-blocked',
-      message: `安装被构建脚本拦截：需要先在「插件」页允许这些脚本后重试（${pendingBuilds.join(', ')}）`,
+      message: `安装被依赖的构建脚本拦截（${pendingBuilds.join(', ')}），可以允许这些脚本后重试`,
       detail,
     };
   }
-  if (/GIT_DEP_PREPARE_NOT_ALLOWED|prepare[^.]{0,40}(?:not allowed|blocked)|build scripts? (?:are )?(?:not allowed|blocked)/i.test(text)) {
-    return { reason: 'build-blocked', message: '安装需要执行构建脚本，被 pnpm 的安全策略拦截；请到「插件」页允许后重试', detail };
+  if (/GIT_PREPARE|GIT_DEP_PREPARE_NOT_ALLOWED|needs to execute build scripts but is not in the "allowBuilds"/i.test(text)) {
+    const buildKey = /allowBuilds:\s*\n\s+'?([^'\n]+?)'?\s*:\s*true/i.exec(text)?.[1];
+    return {
+      reason: 'git-prepare-blocked',
+      message: '这个插件的 GitHub 源码包安装前需要执行构建脚本（prepare），pnpm 默认拦截；可以允许后重试，或改用官方 npm 包安装',
+      detail,
+      ...(buildKey ? { buildKey } : {}),
+    };
+  }
+  if (/prepare[^.]{0,40}(?:not allowed|blocked)|build scripts? (?:are )?(?:not allowed|blocked)/i.test(text)) {
+    return { reason: 'build-blocked', message: '安装需要执行构建脚本，被 pnpm 的安全策略拦截；可以允许后重试', detail };
   }
   if (/ETIMEDOUT|ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|fetch failed|network|socket hang up|timed? ?out/i.test(text)) {
     return { reason: 'network', message: '网络无法访问安装源（GitHub 或 npm 可能不可达），请稍后重试', detail };
@@ -669,15 +686,139 @@ function describePlacement(bundle, change) {
   if (/skill-|技能/.test(rows + description)) hints.push('作为 Skill 在对话中被触发');
   if (/provider|llm-|web-search|web-fetch|搜索|模型/.test(rows + description)) hints.push('在「设置 → 模型 / 网页搜索」里选择它');
   if (/agent-preset|preset|预设/.test(rows + description)) hints.push('在新建会话的 Agent 预设里选择它');
+  if (/market|marketplace|store|市场|商店/.test(rows + description)) hints.push('在「插件」页或左侧栏里会出现它的市场入口（刷新窗口后查看）');
   if (hints.length === 0) hints.push('刷新窗口后查看左侧栏与「设置 → 插件」，多数插件会在这些位置出现');
   const applied = change?.application === 'applied';
   return { hints, applied };
 }
 
+/** In-memory repository → installed bundle aliases. */
+const installAliases = new Map();
+/** Aliases are loaded from disk once. */
+let aliasesLoaded = false;
+
+/**
+ * Load repository → bundle aliases recorded by earlier installs.
+ * @returns {Promise<void>} completion
+ */
+async function loadAliases() {
+  if (aliasesLoaded) return;
+  aliasesLoaded = true;
+  try {
+    const parsed = JSON.parse(await readFile(ALIAS_FILE, 'utf8'));
+    for (const [full, bundle] of Object.entries(parsed ?? {})) {
+      if (typeof bundle === 'string') installAliases.set(full, bundle);
+    }
+  } catch {
+    /* no aliases yet */
+  }
+}
+
+/**
+ * Persist the current repository → bundle aliases.
+ * @returns {Promise<void>} completion
+ */
+async function saveAliases() {
+  try {
+    await mkdir(CACHE_DIR, { recursive: true });
+    await writeFile(ALIAS_FILE, JSON.stringify(Object.fromEntries(installAliases)), 'utf8');
+  } catch {
+    /* the marker still works for this session */
+  }
+}
+
+/** Latest failed install per repository, so the page can offer approve-and-retry. */
+const installFailures = new Map();
+/** Cached npm-package lookups for GitHub-only catalog entries. */
+const npmAlternatives = new Map();
+
+/**
+ * Escape a string for use inside a regular expression.
+ * @param {string} text literal text
+ * @returns {string} escaped text
+ */
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Find an npm package published from the same repository, used when a GitHub
+ * source cannot be prepared or built.
+ * @param {string} full `owner/repo`
+ * @param {string} rawError package-manager output naming the git package
+ * @returns {Promise<{ name: string, version: string, spec: string, registry: string } | null>} npm target
+ */
+async function lookupNpmAlternative(full, rawError) {
+  if (npmAlternatives.has(full)) return npmAlternatives.get(full);
+  /** @type {Set<string>} */
+  const candidates = new Set();
+  const named = /git-hosted package "(.+?)@[0-9][^"]*"/i.exec(rawError)?.[1];
+  if (named) candidates.add(named);
+  const basename = full.split('/')[1] ?? '';
+  if (basename) {
+    candidates.add(basename);
+    candidates.add(basename.replace(/-/g, ''));
+  }
+  for (const name of candidates) {
+    for (const registry of NPM_REGISTRIES) {
+      try {
+        const response = await request(`${registry}/${encodeURIComponent(name)}/latest`, 8 * 1000, 'application/json');
+        const metadata = await response.json();
+        const repository = typeof metadata?.repository === 'string' ? metadata.repository : metadata?.repository?.url ?? '';
+        const declared = metadata?.dsh?.bundle !== undefined;
+        const matches = String(repository).toLowerCase().includes(`github.com/${full.toLowerCase()}`);
+        if (declared && matches && typeof metadata.version === 'string') {
+          const result = { name: metadata.name ?? name, version: metadata.version, spec: `${metadata.name ?? name}@${metadata.version}`, registry };
+          npmAlternatives.set(full, result);
+          return result;
+        }
+      } catch {
+        /* try the next registry or candidate */
+      }
+    }
+  }
+  npmAlternatives.set(full, null);
+  return null;
+}
+
+/**
+ * Allow one git-hosted package's prepare script in the profile's pnpm settings.
+ * Writes `allowBuilds` into pnpm-workspace.yaml — the same change pnpm's own
+ * error message asks the user to make.
+ * @param {string} buildKey exact allowBuilds key suggested by pnpm
+ * @returns {Promise<string>} the key written
+ */
+export async function writeAllowBuilds(buildKey) {
+  const file = join(PROFILE_DIR, 'pnpm-workspace.yaml');
+  let text;
+  try {
+    text = await readFile(file, 'utf8');
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+    text = 'packages:\n  - .\n';
+  }
+  const quoted = `'${buildKey.replace(/'/g, "''")}'`;
+  const existing = new RegExp(`^[ \\t]*'?${escapeRegExp(buildKey)}'?[ \\t]*:[ \\t]*.*$`, 'm');
+  if (existing.test(text)) {
+    text = text.replace(existing, `  ${quoted}: true`);
+  } else if (/^allowBuilds:[ \\t]*$/m.test(text)) {
+    const match = /^allowBuilds:[ \\t]*$/m.exec(text);
+    const insertAt = match.index + match[0].length;
+    text = `${text.slice(0, insertAt)}\n   ${quoted}: true${text.slice(insertAt)}`.replace(/\n   /, '\n  ');
+  } else {
+    text = `${text.replace(/\s*$/, '')}\n\nallowBuilds:\n  ${quoted}: true\n`;
+  }
+  await mkdir(PROFILE_DIR, { recursive: true });
+  const temporary = `${file}.${process.pid}.tmp`;
+  await writeFile(temporary, text, { mode: 384 });
+  await rename(temporary, file);
+  return buildKey;
+}
+
 /**
  * Install one catalog entry through the profile's plugin manager.
  * @param {any} ctx Host context
- * @param {{ id: string, full: string, spec: string, via: string, status: string, startedAt: number, result: any }} job install job
+ * @param {{ id: string, full: string, spec: string, via: string, status: string, startedAt: number, result: any, options?: { approvedBuilds?: string[], allowBuildKey?: string, npmSpec?: string, mode?: string } }} job install job
  * @returns {Promise<void>} completion
  */
 async function runInstallJob(ctx, job) {
@@ -686,8 +827,11 @@ async function runInstallJob(ctx, job) {
     job.result = { ok: false, stage: 'manager', error: '当前 profile 没有可用的插件管理器（pluginManager 服务未加载）', install: job.spec, via: job.via };
     return;
   }
+  const spec = job.options?.npmSpec ?? job.spec;
+  const via = job.options?.npmSpec ? 'npm' : job.via;
   try {
-    const inspection = await manager.inspect(job.spec, undefined, AbortSignal.timeout(45 * 1000));
+    if (job.options?.allowBuildKey) await writeAllowBuilds(job.options.allowBuildKey);
+    const inspection = await manager.inspect(spec, undefined, AbortSignal.timeout(45 * 1000));
     if (inspection.status === 'refused') {
       const already = inspection.problem === 'already-installed';
       job.result = {
@@ -704,11 +848,14 @@ async function runInstallJob(ctx, job) {
       job.result = { ok: false, stage: 'inspect', problem: 'not-bundle', error: '该仓库不是可安装的 DSH 插件包（package.json 里没有声明 dsh.bundle）', install: job.spec, via: job.via };
       return;
     }
-    const change = await manager.installBundle(job.spec, { enabled: true });
+    const options = job.options?.approvedBuilds === undefined ? { enabled: true } : { enabled: true, approvedBuilds: job.options.approvedBuilds };
+    const change = await manager.installBundle(spec, options);
     if (change.application === 'failed') {
       const pending = Array.isArray(change.pendingBuilds) && change.pendingBuilds.length > 0 ? change.pendingBuilds : undefined;
       const raw = change.error?.diagnostic ?? change.packageResult?.output ?? change.error?.code ?? '安装失败';
       const classified = classifyInstallError(raw, pending);
+      const wantsNpm = !job.options?.npmSpec && via !== 'npm' && (classified.reason === 'git-prepare-blocked' || classified.reason === 'unknown' || classified.reason === 'network');
+      const npmAlternative = wantsNpm ? await lookupNpmAlternative(job.full, raw) : null;
       job.result = {
         ok: false,
         stage: 'install',
@@ -716,8 +863,10 @@ async function runInstallJob(ctx, job) {
         error: classified.message,
         detail: classified.detail,
         pendingBuilds: pending,
+        ...(classified.buildKey ? { buildKey: classified.buildKey } : {}),
+        ...(npmAlternative ? { npmAlternative } : {}),
         install: job.spec,
-        via: job.via,
+        via,
       };
       return;
     }
@@ -741,13 +890,36 @@ async function runInstallJob(ctx, job) {
       hints: placement.hints,
       applied: placement.applied,
       install: job.spec,
-      via: job.via,
+      via,
     };
   } catch (error) {
-    job.result = { ok: false, stage: 'install', error: error instanceof Error ? error.message : String(error), install: job.spec, via: job.via };
+    const raw = error instanceof Error ? error.message : String(error);
+    const classified = classifyInstallError(raw);
+    const wantsNpm = !job.options?.npmSpec && via !== 'npm' && (classified.reason === 'git-prepare-blocked' || classified.reason === 'unknown' || classified.reason === 'network');
+    const npmAlternative = wantsNpm ? await lookupNpmAlternative(job.full, raw) : null;
+    job.result = {
+      ok: false,
+      stage: 'install',
+      reason: classified.reason,
+      error: classified.message,
+      detail: classified.detail,
+      ...(classified.buildKey ? { buildKey: classified.buildKey } : {}),
+      ...(npmAlternative ? { npmAlternative } : {}),
+      install: job.spec,
+      via,
+    };
   } finally {
     job.status = 'done';
     job.finishedAt = Date.now();
+    if (job.result?.ok) {
+      installFailures.delete(job.full);
+      if (typeof job.result.bundle === 'string' && job.result.bundle.length > 0) {
+        installAliases.set(job.full, job.result.bundle);
+        void saveAliases();
+      }
+    } else if (job.result) {
+      installFailures.set(job.full, { result: job.result, spec: job.spec, via: job.via });
+    }
     for (const [key, value] of installJobs) {
       if (value.status === 'done' && Date.now() - (value.finishedAt ?? value.startedAt) > INSTALL_RESULT_TTL_MS) installJobs.delete(key);
     }
@@ -824,6 +996,43 @@ function registerRoutes(ctx) {
   });
 
   ctx.connection.fetch.register({
+    path: '/api/plugin-discovery/install/approve',
+    methods: ['POST'],
+    requestBody: 'buffered',
+    fetch: async (request) => {
+      try {
+        const body = await request.json().catch(() => ({}));
+        const full = typeof body?.full === 'string' ? body.full.trim() : '';
+        if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(full)) return json({ error: '无效的仓库名' }, 400);
+        const failure = installFailures.get(full);
+        if (failure === undefined) return json({ error: '没有待处理的安装失败，请先点一次「安装」' }, 400);
+        for (const running of installJobs.values()) {
+          if (running.status === 'running') return json({ error: '已有另一个安装任务正在进行，请等它完成后再试' }, 409);
+        }
+        const result = failure.result;
+        /** @type {{ npmSpec?: string, allowBuildKey?: string, approvedBuilds?: string[], mode: string }} */
+        let options;
+        if (result?.npmAlternative?.spec) {
+          options = { npmSpec: result.npmAlternative.spec, mode: 'npm-alternative' };
+        } else if (result?.buildKey) {
+          options = { allowBuildKey: result.buildKey, mode: 'allow-builds' };
+        } else if (Array.isArray(result?.pendingBuilds) && result.pendingBuilds.length > 0) {
+          options = { approvedBuilds: result.pendingBuilds, mode: 'approved-builds' };
+        } else {
+          return json({ error: '这次失败不需要构建授权，无法自动重试' }, 400);
+        }
+        const id = `${Date.now().toString(36)}-${(installSequence += 1)}`;
+        const job = { id, full, spec: failure.spec, via: failure.via, status: /** @type {'running'} */ ('running'), startedAt: Date.now(), result: null, options };
+        installJobs.set(id, job);
+        void runInstallJob(ctx, job);
+        return json({ jobId: id, mode: options.mode, spec: options.npmSpec ?? failure.spec, approvedBuilds: options.approvedBuilds ?? [] });
+      } catch (error) {
+        return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+      }
+    },
+  });
+
+  ctx.connection.fetch.register({
     path: '/api/plugin-discovery/install/status',
     methods: ['GET'],
     requestBody: 'buffered',
@@ -844,17 +1053,20 @@ function registerRoutes(ctx) {
       const manager = ctx.get('pluginManager');
       if (manager === undefined) return json({ bundles: [] });
       try {
+        await loadAliases();
         const bundles = await manager.listBundles();
-        return json({
-          bundles: bundles
-            .filter((bundle) => bundle.installed === true)
-            .map((bundle) => ({
-              name: bundle.name,
-              version: bundle.version,
-              source: bundle.source,
-              enabled: bundle.enabled,
-            })),
-        });
+        const installed = bundles.filter((bundle) => bundle.installed === true);
+        const list = installed.map((bundle) => ({
+          name: bundle.name,
+          version: bundle.version,
+          source: bundle.source,
+          enabled: bundle.enabled,
+        }));
+        const names = new Set(installed.map((bundle) => bundle.name));
+        for (const [full, bundleName] of installAliases) {
+          if (names.has(bundleName)) list.push({ name: bundleName, installed: true, enabled: true, aliasFor: full });
+        }
+        return json({ bundles: list });
       } catch (error) {
         return json({ bundles: [], error: error instanceof Error ? error.message : String(error) });
       }

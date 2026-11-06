@@ -82,10 +82,15 @@ window.__ModuleLoader__.load({
       'toast.applied': '已立即生效，刷新一下窗口就能看到入口。',
       'toast.restart': '需要重启 DSH 后生效。',
       'toast.gitOnly': '该插件只提供 GitHub 安装源，当前网络可能无法直连 GitHub；可以稍后重试，或在「插件」页手动安装。',
-      'toast.pending': '安装被构建脚本拦截：需要先在「插件」页允许这些脚本后重试（{list}）。',
+      'toast.pending': '安装被依赖的构建脚本拦截（{list}），点下面的「允许并重试」继续。',
       'toast.buildBlocked': '这个插件安装时要执行构建脚本，被 pnpm 安全策略拦截；可在「插件」页允许脚本后重试。',
       'toast.network': '网络无法访问安装源（GitHub 或 npm 可能不可达），请稍后重试。',
       'toast.notFound': '安装源里没有找到可安装的版本，可能已被作者删除或改名。',
+      'toast.approveRetry': '允许并重试',
+      'toast.useNpm': '改用 npm 源安装（{spec}）',
+      'toast.retryingTitle': '正在重试安装 {name}…',
+      'toast.approveNote': '允许后会执行该插件自带的构建脚本（会写入当前 profile 的 pnpm-workspace.yaml），请确认来源可信。',
+      'toast.npmNote': '检测到同一项目的官方 npm 包 {spec}，改用它安装不需要执行构建脚本。',
       'toast.already': '这个插件已经安装过了，无需重复安装。',
       'toast.notBundle': '该仓库不是可安装的 DSH 插件包（没有声明 bundle），可能只是一个目录或示例仓库。',
       'toast.openGithub': '打开 GitHub',
@@ -153,10 +158,15 @@ window.__ModuleLoader__.load({
       'toast.applied': 'Applied immediately — refresh the window to see the entry.',
       'toast.restart': 'Restart DSH for it to take effect.',
       'toast.gitOnly': 'This plugin only ships a GitHub install source, and GitHub may be unreachable on this network. Retry later or install it manually from the Plugins page.',
-      'toast.pending': 'The install was blocked by build scripts: allow them on the Plugins page and retry ({list}).',
+      'toast.pending': 'The install was blocked by dependency build scripts ({list}); use “Allow and retry” below.',
       'toast.buildBlocked': 'This plugin runs build scripts during install and pnpm blocked them; allow them on the Plugins page and retry.',
       'toast.network': 'The install source is unreachable (GitHub or npm may be down); retry later.',
       'toast.notFound': 'No installable version was found; the package may have been removed or renamed.',
+      'toast.approveRetry': 'Allow and retry',
+      'toast.useNpm': 'Install from npm instead ({spec})',
+      'toast.retryingTitle': 'Retrying {name}…',
+      'toast.approveNote': 'Allowing runs this plugin’s own build scripts and writes the approval into this profile’s pnpm-workspace.yaml; only continue for a source you trust.',
+      'toast.npmNote': 'The same project publishes an npm package {spec}; installing from npm needs no build scripts.',
       'toast.already': 'This plugin is already installed.',
       'toast.notBundle': 'This repository is not an installable DSH bundle (it declares no bundle patch); it may be a catalog or example repository.',
       'toast.openGithub': 'Open GitHub',
@@ -244,6 +254,8 @@ window.__ModuleLoader__.load({
 .pd-status-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
 .pd-status-link{font-size:11.5px;color:var(--dsw-alias-brand-primary,#2F6FED);text-decoration:none;border:1px solid var(--dsw-alias-border-l1,#e4e8f0);border-radius:6px;padding:3px 9px;cursor:pointer;background:transparent;font-family:inherit}
 .pd-status-link:hover{background:var(--dsw-alias-bg-layer-2,#f4f6fa)}
+.pd-status-link.primary{background:var(--dsw-alias-brand-primary,#2F6FED);border-color:var(--dsw-alias-brand-primary,#2F6FED);color:#fff}
+.pd-status-link.primary:hover{background:color-mix(in srgb,var(--dsw-alias-brand-primary,#2F6FED) 85%,black)}
 .pd-foot{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between;padding:10px 12px;font-size:12px;color:var(--dsw-alias-label-secondary,#667085)}
 .pd-pager{display:flex;align-items:center;gap:6px}
 .pd-pager select{border:1px solid var(--dsw-alias-border-l1,#e4e8f0);border-radius:7px;padding:4px 6px;font:inherit;font-size:12px;background:var(--dsw-alias-bg-base,#fff);color:inherit}
@@ -421,8 +433,27 @@ window.__ModuleLoader__.load({
           if (installedBundles.some((bundle) => String(bundle.name ?? '').toLowerCase() === base)) return true;
         }
         const needle = String(row.full ?? '').toLowerCase();
-        return installedBundles.some((bundle) => String(bundle.source ?? '').toLowerCase().includes(needle));
+        return installedBundles.some((bundle) =>
+          String(bundle.aliasFor ?? '').toLowerCase() === needle ||
+          String(bundle.source ?? '').toLowerCase().includes(needle));
       }, [installedFull, installedBundles]);
+
+      /**
+       * Poll one Host install job until it settles.
+       * @param {string} jobId job id
+       * @returns {Promise<any>} final result, or null on timeout
+       */
+      const pollJob = React.useCallback(async (jobId) => {
+        const deadline = Date.now() + 5 * 60 * 1000;
+        while (Date.now() < deadline) {
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          const status = await fetch(`/api/plugin-discovery/install/status?id=${encodeURIComponent(jobId)}`, { cache: 'no-store' });
+          const statusBody = await status.json().catch(() => ({}));
+          if (!status.ok) throw new Error(statusBody.error ?? `HTTP ${status.status}`);
+          if (statusBody.status === 'done') return statusBody.result ?? null;
+        }
+        return null;
+      }, []);
 
       /**
        * Install one catalog plugin through the Host plugin manager.
@@ -441,15 +472,7 @@ window.__ModuleLoader__.load({
           });
           const startBody = await started.json().catch(() => ({}));
           if (!started.ok || typeof startBody.jobId !== 'string') throw new Error(startBody.error ?? `HTTP ${started.status}`);
-          const deadline = Date.now() + 5 * 60 * 1000;
-          let result = null;
-          while (Date.now() < deadline) {
-            await new Promise((resolve) => setTimeout(resolve, 1500));
-            const status = await fetch(`/api/plugin-discovery/install/status?id=${encodeURIComponent(startBody.jobId)}`, { cache: 'no-store' });
-            const statusBody = await status.json().catch(() => ({}));
-            if (!status.ok) throw new Error(statusBody.error ?? `HTTP ${status.status}`);
-            if (statusBody.status === 'done') { result = statusBody.result; break; }
-          }
+          const result = await pollJob(startBody.jobId);
           if (result === null) throw new Error('安装超时，请稍后在「插件」页查看结果');
           if (result.ok) {
             setInstalledFull((prev) => new Set(prev).add(row.full));
@@ -473,7 +496,54 @@ window.__ModuleLoader__.load({
             return next;
           });
         }
-      }, [installing, showToast]);
+      }, [installing, showToast, pollJob]);
+
+      /**
+       * Retry a failed install with the approval the failed attempt needs
+       * (allow git prepare scripts in pnpm settings, approve pending build
+       * scripts, or switch to the project's npm package).
+       * @param {string} full owner/repo
+       * @param {string} name display name
+       * @param {string} url GitHub url
+       * @returns {Promise<void>} completion
+       */
+      const approveInstall = React.useCallback(async (full, name, url) => {
+        if (installing.size > 0) return;
+        setInstalling((prev) => new Set(prev).add(full));
+        setToast({ kind: 'progress', full, name, url, retrying: true });
+        try {
+          const started = await fetch('/api/plugin-discovery/install/approve', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', accept: 'application/json' },
+            body: JSON.stringify({ full }),
+          });
+          const startBody = await started.json().catch(() => ({}));
+          if (!started.ok || typeof startBody.jobId !== 'string') throw new Error(startBody.error ?? `HTTP ${started.status}`);
+          const result = await pollJob(startBody.jobId);
+          if (result === null) throw new Error('安装超时，请稍后在「插件」页查看结果');
+          if (result.ok) {
+            setInstalledFull((prev) => new Set(prev).add(full));
+            try {
+              const refreshed = await fetch('/api/plugin-discovery/installed', { cache: 'no-store' });
+              const refreshedBody = await refreshed.json();
+              if (Array.isArray(refreshedBody.bundles)) setInstalledBundles(refreshedBody.bundles);
+            } catch {
+              /* badge refresh is best-effort */
+            }
+            showToast({ kind: 'success', full, name, url, result });
+          } else {
+            showToast({ kind: 'error', full, name, url, result });
+          }
+        } catch (cause) {
+          showToast({ kind: 'error', full, name, url, result: { ok: false, error: cause instanceof Error ? cause.message : String(cause) } });
+        } finally {
+          setInstalling((prev) => {
+            const next = new Set(prev);
+            next.delete(full);
+            return next;
+          });
+        }
+      }, [installing, showToast, pollJob]);
 
       React.useEffect(() => {
         alive.current = true;
@@ -867,7 +937,7 @@ window.__ModuleLoader__.load({
         const isProgress = toast.kind === 'progress';
         const isSuccess = toast.kind === 'success';
         const title = isProgress
-          ? t('toast.progress.title', { name: toast.name })
+          ? t(toast.retrying ? 'toast.retryingTitle' : 'toast.progress.title', { name: toast.name })
           : isSuccess
             ? t('toast.success.title', { name: result?.title || toast.name })
             : t('toast.error.title', { name: toast.name });
@@ -884,11 +954,30 @@ window.__ModuleLoader__.load({
           if (result?.problem === 'already-installed') guidance.push({ label: '', items: [t('toast.already')] });
           else if (result?.problem === 'not-bundle') guidance.push({ label: '', items: [t('toast.notBundle')] });
           else if (result?.reason === 'unknown' && result?.via === 'git') guidance.push({ label: '', items: [t('toast.gitOnly')] });
+          if (result?.npmAlternative?.spec) guidance.push({ label: '', items: [t('toast.npmNote', { spec: result.npmAlternative.spec })] });
+          else if (result?.buildKey) guidance.push({ label: '', items: [t('toast.approveNote')] });
           if (Array.isArray(result?.pendingBuilds) && result.pendingBuilds.length > 0) {
             guidance.push({ label: '', items: [t('toast.pending', { list: result.pendingBuilds.join(', ') })] });
           }
         }
         const actions = [];
+        if (!isProgress && toast.result && toast.full) {
+          if (toast.result.npmAlternative?.spec) {
+            actions.push(h('button', {
+              key: 'npm',
+              className: 'pd-status-link primary',
+              disabled: installing.size > 0,
+              onClick: () => void approveInstall(toast.full, toast.name, toast.url),
+            }, t('toast.useNpm', { spec: toast.result.npmAlternative.spec })));
+          } else if (toast.result.buildKey || (Array.isArray(toast.result.pendingBuilds) && toast.result.pendingBuilds.length > 0)) {
+            actions.push(h('button', {
+              key: 'approve',
+              className: 'pd-status-link primary',
+              disabled: installing.size > 0,
+              onClick: () => void approveInstall(toast.full, toast.name, toast.url),
+            }, t('toast.approveRetry')));
+          }
+        }
         if (toast.url) actions.push(h('a', { key: 'gh', className: 'pd-status-link', href: toast.url, target: '_blank', rel: 'noopener noreferrer' }, `${t('toast.openGithub')} ↗`));
         if (isSuccess && openPlugins !== null) actions.push(h('button', { key: 'plugins', className: 'pd-status-link', onClick: () => openPlugins() }, t('toast.openPlugins')));
         actions.push(h('button', { key: 'close', className: 'pd-status-link', onClick: () => setToast(null) }, t('toast.close')));

@@ -2,18 +2,24 @@
 
 [中文](README.md) | [**English**](README.en.md)
 
-## Latest v1.2.0 (2026-11-06)
+## Latest v1.3.0 (2026-11-06)
 
-[Release notes](https://github.com/HiddenPuppy/dsh-plugin-discovery/releases/tag/v1.2.0) · What changed:
+[Release notes](https://github.com/HiddenPuppy/dsh-plugin-discovery/releases/tag/v1.3.0) · What changed:
 
-- **One-click install**: every row has an **Install** button that adds the plugin to the current DSH profile and then reports whether it worked and roughly where to find it
-- **Installed marker**: plugins already in this profile show **✓ Installed** instead of the install button
-- **Refresh 404 fixed**: catalog volume files are discovered at runtime, so renames and splits upstream no longer break refreshing
+- **Failed installs can be handled in place**: the status card now offers **Allow and retry** and **Install from npm instead**
+  - blocked build scripts → writes `allowBuilds` into this profile's `pnpm-workspace.yaml` and retries
+  - GitHub source unusable or fails to build while the same project publishes an npm package → install from npm, no build scripts
+- **Smarter install sources**: when GitHub is unreachable or a source package cannot build, the same project's npm package is detected automatically (e.g. `dsh-market` → `dshmarket@1.73.12`)
+- **Persistent installed marker**: **✓ Installed** survives reloads and restarts
 - The catalog currently lists **24,075** plugins, **639** of which support one-click install from npm
 
 > A **Plugin Discovery** page under the DSH sidebar (below *Automations*): the complete GitHub-hosted DSH plugin marketplace, with 24k+ plugins, a one-sentence Chinese description for every project, GitHub README links and one-click installation.
 
 ![Plugin Discovery screenshot](docs/screenshot.png)
+
+The status card after an install (version, source and where to find it):
+
+![Install status card](docs/install.png)
 
 ## What it does
 
@@ -26,6 +32,7 @@
 - **Open the project**: clicking a row (or **Open project ↗**) opens the plugin's GitHub page so you can read its README before installing.
 - **One-click install**: every row has an **Install** button. It asks the DSH plugin manager to add that plugin to this profile, preferring the catalog's npm install target (639 plugins have one) and falling back to the GitHub repository. While it runs the page shows progress; when it finishes an inline status card says **whether it worked**, the installed version and **roughly where to find it** (sidebar / settings / agent tools / slash commands / notifications …), plus how to fix common failures (build scripts blocked, network unreachable, already installed, not a bundle).
 - **Installed markers**: plugins already present in this profile show **✓ Installed** instead of the install button.
+- **Failures are actionable**: blocked build scripts get an **Allow and retry** button (writes `allowBuilds` into this profile's `pnpm-workspace.yaml`); when the GitHub source is unusable but the same project publishes an npm package, the card offers **Install from npm instead**, which needs no build scripts.
 
 ## Install
 
@@ -41,6 +48,20 @@ Requires **DSH V0.2.1-rc.5 or newer**.
 3. After installation, **Plugin Discovery** appears under *Automations* in the sidebar. Refresh the window if it does not show up immediately.
 
 You can also let an agent install it (`plugin_manager` → `install_bundle` with the Git URL or a local absolute path), or `git clone` this repo and pass the local path to the install dialog.
+
+## When an install fails
+
+The status card offers the action the failure needs:
+
+| Situation | Card offers | What happens |
+| --- | --- | --- |
+| Dependency install scripts blocked by pnpm | **Allow and retry** | Writes `allowBuilds` into this profile's `pnpm-workspace.yaml` and retries; allowing runs the plugin's own scripts, so only continue for a source you trust |
+| GitHub source needs prepare/build and fails | **Allow and retry**, then an npm option | Retry once; if the build still fails and the project publishes an npm package, install from npm |
+| Same project publishes an npm package | **Install from npm instead (name@version)** | Installs the npm package, no build scripts (e.g. `dsh-market` → `dshmarket@1.73.12`) |
+| GitHub unreachable (network timeout) | Network message; npm option when available | Switch to npm, or retry later |
+| Already installed / not a DSH bundle | Explicit reason | No action needed |
+
+> The built-in **Plugins** page only offers “allow these scripts and retry” for npm dependency build scripts; it has no button for **git source `prepare` scripts** (that requires editing `pnpm-workspace.yaml` by hand). This plugin brings that flow into its status card.
 
 ## Data source
 
@@ -78,6 +99,7 @@ The Host half registers two routes on DSH's authenticated API channel:
 - `GET /api/plugin-discovery/feed` — the normalized catalog; `?refresh=1` starts a background refresh, `?wait=1` waits for the in-flight refresh before responding
 - `GET /api/plugin-discovery/meta` — sync status (last sync time, refreshing, error message)
 - `POST /api/plugin-discovery/install` — starts installing one catalog repository through `ctx.pluginManager`; returns a job id
+- `POST /api/plugin-discovery/install/approve` — retries the last failed install with the approval it needs (write `allowBuilds`, approve build scripts, or switch to the npm package)
 - `GET /api/plugin-discovery/install/status?id=…` — job state and the final install result (friendly error + placement hints)
 - `GET /api/plugin-discovery/installed` — bundles already installed in this profile (for the ✓ marker)
 
@@ -97,6 +119,7 @@ MIT
 
 ## Changelog
 
+- **1.3.0** — Failed installs are handled in place: the status card offers **Allow and retry** (writes `allowBuilds`) and **Install from npm instead** (when the same repository publishes an npm package), and the ✓ marker is persisted. Fixes the missing build-approval entry on the built-in Plugins page (git source `prepare` scripts have no UI there).
 - **1.2.0** — One-click install: each row gains an **Install** button that installs the plugin into the current DSH profile through the plugin manager (npm install target first), then reports success/failure, the installed version and where to find it. Already-installed plugins are marked ✓. Failures are classified into actionable messages (build scripts blocked, network unreachable, already installed, not a DSH bundle). Catalog now lists 24,075 plugins.
 - **1.1.0** — Fixed the Refresh button failing with `upstream 404` whenever the upstream catalog renamed or split its volume files. Volume names are now discovered at runtime (repository archive first, then `CATALOG.md` + per-file mirror chain), so the page keeps refreshing as the catalog grows. Catalog now lists 23,659 plugins.
 - **1.0.0** — First release.
