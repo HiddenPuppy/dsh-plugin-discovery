@@ -926,6 +926,289 @@ async function runInstallJob(ctx, job) {
   }
 }
 
+/** Host context captured for event handlers and routes that need services. */
+let hostCtx = null;
+
+// #region AUI — agent-facing plugin discovery
+
+/** Persisted AUI settings file. */
+const AUI_FILE = join(CACHE_DIR, 'aui.json');
+/** Default AUI behaviour. */
+const AUI_DEFAULTS = { enabled: true, minScore: 3, cooldownSeconds: 120 };
+/** Loaded AUI settings. */
+let auiSettings = null;
+/** The suggestion waiting for the client to pick up. */
+let pendingSuggestion = null;
+/** Suggestion id sequence. */
+let suggestionSeq = 0;
+/** When the last real suggestion was produced. */
+let lastSuggestionAt = 0;
+/** Plugins the user asked not to suggest again. */
+const dismissedPlugins = new Set();
+/** Cache of derived search strings for the current catalog payload. */
+let searchCache = { fetchedAt: '', entries: [] };
+/** Short cache of installed bundle names. */
+let installedCache = { at: 0, names: new Set(), aliases: new Map() };
+
+/**
+ * Intent expansions: everyday wording → catalog vocabulary.
+ * Keeps matching useful without any keyword index or model call.
+ */
+const INTENTS = [
+  { test: /excel|xlsx|spreadsheet|表格|台账|报表|对账|数据表|sheet\b|csv/i, terms: ['excel', 'xlsx', '表格', 'spreadsheet', 'sheet', 'csv', '台账', '报表', 'office'] },
+  { test: /pdf|文档|word|docx|ppt|pptx|演示|幻灯片|office|办公/i, terms: ['office', 'docx', 'word', 'pdf', 'pptx', 'ppt', '文档', '演示', '幻灯片'] },
+  { test: /图片|修图|视觉|截图|识图|ocr|看图|识别图/i, terms: ['vision', 'image', 'ocr', '图片', '视觉', '截图', '识图'] },
+  { test: /浏览器|网页|爬|抓取|webkit|chrome|链接|打开网页/i, terms: ['browser', 'web', 'chrome', '网页', '浏览器', '爬虫', '抓取'] },
+  { test: /搜索|联网|查资料|搜一下|检索/i, terms: ['search', 'web-search', '搜索', '联网', '检索'] },
+  { test: /通知|提醒|报警|告警|到点|完成时/i, terms: ['notification', 'notify', 'toast', '提醒', '通知', '告警'] },
+  { test: /语音|说话|朗读|tts|听写|录音|语音输入/i, terms: ['voice', 'speech', 'tts', '语音', '朗读', '录音'] },
+  { test: /翻译|译成|中译英|英译中/i, terms: ['translate', 'translation', '翻译'] },
+  { test: /记忆|长期记忆|记住|上下文|知识库/i, terms: ['memory', 'context', '记忆', '上下文', '知识库'] },
+  { test: /定时|每天|每周|周期|cron|schedule|自动化任务/i, terms: ['schedule', 'cron', '定时', '自动化', 'workflow'] },
+  { test: /飞书|lark|钉钉|微信|企业微信|qq|telegram|slack|im\b|消息推送/i, terms: ['feishu', 'lark', 'wechat', 'telegram', 'slack', 'im', '飞书', '微信', '推送'] },
+  { test: /代码|编程|重构|调试|git|仓库|测试|项目/i, terms: ['code', 'git', 'developer', 'debug', '代码', '调试', '仓库'] },
+  { test: /数据库|sql|mysql|postgres|查询数据/i, terms: ['database', 'sql', 'mysql', 'postgres', '数据库'] },
+  { test: /图表|可视化|看板|大屏|仪表盘|dashboard/i, terms: ['chart', 'dashboard', 'visualization', '图表', '可视化', '看板'] },
+  { test: /主题|皮肤|美化|外观|壁纸|宠物/i, terms: ['theme', 'skin', 'wallpaper', 'pet', '主题', '皮肤', '壁纸', '宠物'] },
+  { test: /手机|安卓|android|ios|移动端|扫码/i, terms: ['mobile', 'android', 'ios', '手机', '移动'] },
+  { test: /命令|快捷键|斜杠/i, terms: ['command', 'shortcut', '命令', '快捷键'] },
+  { test: /统计|用量|花费|成本|token|余额/i, terms: ['usage', 'cost', 'token', 'balance', '统计', '用量', '成本', '余额'] },
+  { test: /监控|日志|诊断|排查|性能/i, terms: ['monitor', 'log', 'diagnose', '监控', '日志', '诊断'] },
+  { test: /视频|音频|剪辑|字幕|music|podcast/i, terms: ['video', 'audio', 'subtitle', '视频', '音频', '字幕'] },
+  { test: /日历|日程|会议|待办|任务|todo|task/i, terms: ['calendar', 'schedule', 'task', 'todo', '日历', '日程', '待办', '任务'] },
+  { test: /销售|客户|crm|报价|订单|商机|外贸|获客/i, terms: ['crm', 'sales', 'customer', 'quote', 'order', '销售', '客户', '报价', '订单'] },
+];
+
+/** Common words that should not drive a match on their own. */
+const STOPWORDS = new Set(['the', 'and', 'for', 'with', 'that', 'this', 'you', 'can', 'help', 'please', 'have', 'want', 'need', 'make', 'use', 'from']);
+
+/**
+ * Read the AUI settings from disk once, merging defaults.
+ * @returns {Promise<typeof AUI_DEFAULTS>} settings
+ */
+async function loadAuiSettings() {
+  if (auiSettings !== null) return auiSettings;
+  try {
+    const parsed = JSON.parse(await readFile(AUI_FILE, 'utf8'));
+    auiSettings = {
+      enabled: parsed.enabled !== false,
+      minScore: Number.isFinite(parsed.minScore) ? Math.min(10, Math.max(1, parsed.minScore)) : AUI_DEFAULTS.minScore,
+      cooldownSeconds: Number.isFinite(parsed.cooldownSeconds) ? Math.min(900, Math.max(0, parsed.cooldownSeconds)) : AUI_DEFAULTS.cooldownSeconds,
+    };
+  } catch {
+    auiSettings = { ...AUI_DEFAULTS };
+  }
+  return auiSettings;
+}
+
+/**
+ * Persist a settings patch.
+ * @param {any} patch partial settings
+ * @returns {Promise<typeof AUI_DEFAULTS>} saved settings
+ */
+async function saveAuiSettings(patch) {
+  const current = await loadAuiSettings();
+  const next = { ...current };
+  if (typeof patch?.enabled === 'boolean') next.enabled = patch.enabled;
+  if (Number.isFinite(patch?.minScore)) next.minScore = Math.min(10, Math.max(1, patch.minScore));
+  if (Number.isFinite(patch?.cooldownSeconds)) next.cooldownSeconds = Math.min(900, Math.max(0, patch.cooldownSeconds));
+  auiSettings = next;
+  try {
+    await mkdir(CACHE_DIR, { recursive: true });
+    await writeFile(AUI_FILE, JSON.stringify(next), 'utf8');
+  } catch {
+    /* settings stay live for this session */
+  }
+  return next;
+}
+
+/**
+ * Extract the human text from one user message.
+ * @param {any} message message record
+ * @returns {string} plain text
+ */
+export function messageText(message) {
+  const blocks = Array.isArray(message?.content) ? message.content : [];
+  return blocks
+    .filter((block) => block && block.type === 'text' && typeof block.text === 'string')
+    .map((block) => block.text)
+    .join('\n')
+    .trim();
+}
+
+/**
+ * Derive match terms from a sentence: intent vocabulary, English words and CJK bigrams.
+ * @param {string} text user text
+ * @returns {Set<string>} lowercase terms
+ */
+export function queryTerms(text) {
+  const lower = text.toLowerCase();
+  /** @type {Set<string>} */
+  const terms = new Set();
+  for (const intent of INTENTS) {
+    if (intent.test.test(lower)) for (const term of intent.terms) terms.add(term.toLowerCase());
+  }
+  for (const word of lower.match(/[a-z][a-z0-9+#.-]{2,}/g) ?? []) {
+    if (!STOPWORDS.has(word)) terms.add(word);
+  }
+  for (const run of text.match(/[\u4e00-\u9fff]{2,}/g) ?? []) {
+    for (let index = 0; index + 1 < run.length; index += 1) terms.add(run.slice(index, index + 2));
+  }
+  return terms;
+}
+
+/**
+ * Build (or reuse) the searchable strings for the current payload.
+ * @returns {any[]} entries
+ */
+function searchEntries() {
+  const payload = state.payload;
+  if (!payload) return [];
+  if (searchCache.fetchedAt === payload.fetchedAt) return searchCache.entries;
+  const categoryNames = new Map((payload.categories ?? []).map((category) => [category.key, category.zh]));
+  searchCache = {
+    fetchedAt: payload.fetchedAt,
+    entries: payload.items.map((row) => ({
+      row,
+      name: String(row[0] ?? '').toLowerCase(),
+      full: String(row[1] ?? '').toLowerCase(),
+      text: `${row[7] ?? ''} ${row[8] ?? ''}`.toLowerCase(),
+      category: String(categoryNames.get(row[6]) ?? '').toLowerCase(),
+      stars: Number(row[2] ?? 0),
+      via: String(row[11] ?? ''),
+    })),
+  };
+  return searchCache.entries;
+}
+
+/**
+ * Read the set of installed bundle names, briefly cached.
+ * @returns {Promise<{ names: Set<string>, aliases: Map<string, string> }>} installed info
+ */
+async function installedInfo() {
+  if (Date.now() - installedCache.at < 15 * 1000) return installedCache;
+  const names = new Set();
+  const aliases = new Map();
+  try {
+    const manager = hostCtx?.get('pluginManager');
+    if (manager !== undefined) {
+      const bundles = await manager.listBundles();
+      for (const bundle of bundles) {
+        if (bundle.installed === true && typeof bundle.name === 'string') names.add(bundle.name.toLowerCase());
+      }
+    }
+  } catch {
+    /* treat as unknown */
+  }
+  await loadAliases();
+  for (const [full, bundleName] of installAliases) aliases.set(full, String(bundleName).toLowerCase());
+  installedCache = { at: Date.now(), names, aliases };
+  return installedCache;
+}
+
+/**
+ * Score one catalog entry against query terms.
+ * @param {any} entry search entry
+ * @param {Set<string>} terms query terms
+ * @returns {{ score: number, matched: string[] }} score and matched terms
+ */
+export function scoreEntry(entry, terms) {
+  let score = 0;
+  const matched = new Set();
+  for (const term of terms) {
+    if (term.length < 2) continue;
+    if (entry.name.includes(term) || entry.full.includes(term)) {
+      score += 4;
+      matched.add(term);
+      continue;
+    }
+    if (entry.text.includes(term)) {
+      score += 1.2;
+      matched.add(term);
+      continue;
+    }
+    if (entry.category.length > 0 && entry.category.includes(term)) {
+      score += 0.8;
+      matched.add(term);
+    }
+  }
+  if (score === 0) return { score: 0, matched: [] };
+  score += Math.min(1.2, Math.log10(entry.stars + 1) * 0.35);
+  if (entry.via === 'npm') score += 0.6;
+  return { score: Math.round(score * 10) / 10, matched: [...matched].slice(0, 6) };
+}
+
+/**
+ * Match the catalog against one sentence.
+ * @param {string} text user text
+ * @param {boolean} [force] ignore the AUI switch and the cooldown
+ * @returns {Promise<any | null>} suggestion or null
+ */
+export async function suggestFor(text, force = false) {
+  const settings = await loadAuiSettings();
+  if (!force && !settings.enabled) return null;
+  if (!force && Date.now() - lastSuggestionAt < settings.cooldownSeconds * 1000) return null;
+  await loadPersisted();
+  const entries = searchEntries();
+  if (entries.length === 0) return null;
+  const terms = queryTerms(text);
+  if (terms.size === 0) return null;
+  const { names, aliases } = await installedInfo();
+  /** @type {null | { entry: any, score: number, matched: string[] }} */
+  let best = null;
+  for (const entry of entries) {
+    const full = String(entry.row[1]);
+    if (dismissedPlugins.has(full)) continue;
+    if (aliases.has(full)) continue;
+    if (names.has(entry.name) || names.has(entry.full)) continue;
+    const scored = scoreEntry(entry, terms);
+    if (scored.score <= 0) continue;
+    if (best === null || scored.score > best.score) best = { entry, ...scored };
+  }
+  if (best === null || best.score < settings.minScore) return null;
+  const row = best.entry.row;
+  const categoryZh = (state.payload?.categories ?? []).find((category) => category.key === row[6])?.zh ?? '';
+  const suggestion = {
+    id: `${Date.now().toString(36)}-${(suggestionSeq += 1)}`,
+    createdAt: new Date().toISOString(),
+    query: text.slice(0, 160),
+    reason: best.matched,
+    score: best.score,
+    plugin: {
+      name: row[0],
+      full: row[1],
+      stars: row[2],
+      category: row[6],
+      categoryZh,
+      zh: row[7],
+      en: row[8],
+      url: `https://github.com/${row[1]}`,
+      install: row[10] ?? '',
+      via: row[11] ?? '',
+    },
+  };
+  if (!force) lastSuggestionAt = Date.now();
+  return suggestion;
+}
+
+/**
+ * React to a new user message by looking for a helpful catalog plugin.
+ * @param {any} payload event payload
+ * @returns {Promise<void>} completion
+ */
+async function handleInboxMessage(payload) {
+  try {
+    const text = messageText(payload?.message);
+    if (text.length < 4 || text.startsWith('/')) return;
+    const suggestion = await suggestFor(text, false);
+    if (suggestion !== null) pendingSuggestion = suggestion;
+  } catch {
+    /* AUI must never disturb the conversation */
+  }
+}
+
+// #endregion
+
 /**
  * Register the plugin's authenticated routes.
  * @param {any} ctx Host context carrying `connection`
@@ -1072,6 +1355,166 @@ function registerRoutes(ctx) {
       }
     },
   });
+
+  // #region Plugin management (bundles: official / installed)
+
+  ctx.connection.fetch.register({
+    path: '/api/plugin-discovery/bundles',
+    methods: ['GET'],
+    requestBody: 'buffered',
+    fetch: async () => {
+      const manager = ctx.get('pluginManager');
+      if (manager === undefined) return json({ bundles: [], error: 'pluginManager 服务未加载' });
+      try {
+        const bundles = await manager.listBundles();
+        return json({
+          bundles: bundles.map((bundle) => ({
+            name: bundle.name,
+            official: bundle.official === true,
+            availability: bundle.availability,
+            installed: bundle.installed === true,
+            enabled: bundle.enabled === true,
+            version: bundle.version ?? null,
+            description: bundle.description ?? '',
+            title: localized(bundle.meta?.title),
+            metaDescription: localized(bundle.meta?.description),
+            source: bundle.source ?? null,
+            optional: bundle.optional === true,
+            removable: bundle.removable === true,
+            readOnlyReason: bundle.readOnlyReason ?? null,
+            problem: bundle.error?.code ?? null,
+            rows: (bundle.rows ?? []).map((row) => ({ rowId: row.rowId, moduleName: row.moduleName, entryId: row.entryId ?? null })),
+            overrides: Array.isArray(bundle.overrides) ? bundle.overrides : [],
+          })),
+        });
+      } catch (error) {
+        return json({ bundles: [], error: error instanceof Error ? error.message : String(error) }, 500);
+      }
+    },
+  });
+
+  ctx.connection.fetch.register({
+    path: '/api/plugin-discovery/bundles/enable',
+    methods: ['POST'],
+    requestBody: 'buffered',
+    fetch: async (request) => {
+      const manager = ctx.get('pluginManager');
+      if (manager === undefined) return json({ error: 'pluginManager 服务未加载' }, 503);
+      try {
+        const body = await request.json().catch(() => ({}));
+        const name = typeof body?.name === 'string' ? body.name : '';
+        if (name.length === 0) return json({ error: '缺少组合包名称' }, 400);
+        const change = await manager.setBundleEnabled(name, body?.enabled === true);
+        return json({
+          ok: change.application !== 'failed',
+          application: change.application,
+          restartReason: change.restartReason ?? null,
+          warnings: change.warnings ?? [],
+          error: change.error?.diagnostic ?? change.error?.code ?? null,
+        });
+      } catch (error) {
+        return json({ ok: false, error: error instanceof Error ? error.message : String(error) }, 500);
+      }
+    },
+  });
+
+  ctx.connection.fetch.register({
+    path: '/api/plugin-discovery/bundles/remove',
+    methods: ['POST'],
+    requestBody: 'buffered',
+    fetch: async (request) => {
+      const manager = ctx.get('pluginManager');
+      if (manager === undefined) return json({ error: 'pluginManager 服务未加载' }, 503);
+      try {
+        const body = await request.json().catch(() => ({}));
+        const name = typeof body?.name === 'string' ? body.name : '';
+        if (name.length === 0) return json({ error: '缺少组合包名称' }, 400);
+        const change = await manager.removeBundle(name);
+        return json({
+          ok: change.application !== 'failed',
+          application: change.application,
+          restartReason: change.restartReason ?? null,
+          warnings: change.warnings ?? [],
+          error: change.error?.diagnostic ?? change.error?.code ?? null,
+        });
+      } catch (error) {
+        return json({ ok: false, error: error instanceof Error ? error.message : String(error) }, 500);
+      }
+    },
+  });
+
+  // #endregion
+
+  // #region AUI — agent-facing plugin discovery
+
+  ctx.connection.fetch.register({
+    path: '/api/plugin-discovery/aui',
+    methods: ['GET', 'POST'],
+    requestBody: 'buffered',
+    fetch: async (request) => {
+      try {
+        if (request.method === 'POST') {
+          const body = await request.json().catch(() => ({}));
+          const settings = await saveAuiSettings(body ?? {});
+          return json({ settings, pending: pendingSuggestion });
+        }
+        const settings = await loadAuiSettings();
+        return json({ settings, pending: pendingSuggestion });
+      } catch (error) {
+        return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+      }
+    },
+  });
+
+  ctx.connection.fetch.register({
+    path: '/api/plugin-discovery/aui/suggestion',
+    methods: ['GET'],
+    requestBody: 'buffered',
+    fetch: async (request) => {
+      const url = new URL(request.url, 'http://localhost');
+      const after = url.searchParams.get('after') ?? '';
+      const settings = await loadAuiSettings();
+      const fresh = pendingSuggestion !== null && pendingSuggestion.id !== after;
+      return json({ enabled: settings.enabled, suggestion: fresh ? pendingSuggestion : null });
+    },
+  });
+
+  ctx.connection.fetch.register({
+    path: '/api/plugin-discovery/aui/dismiss',
+    methods: ['POST'],
+    requestBody: 'buffered',
+    fetch: async (request) => {
+      try {
+        const body = await request.json().catch(() => ({}));
+        const current = pendingSuggestion;
+        if (body?.mutePlugin === true && current !== null) dismissedPlugins.add(String(current.plugin.full));
+        if (body?.disable === true) await saveAuiSettings({ enabled: false });
+        if (current !== null && (body?.id === undefined || body.id === current.id)) pendingSuggestion = null;
+        return json({ ok: true, muted: dismissedPlugins.size });
+      } catch (error) {
+        return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+      }
+    },
+  });
+
+  ctx.connection.fetch.register({
+    path: '/api/plugin-discovery/aui/test',
+    methods: ['POST'],
+    requestBody: 'buffered',
+    fetch: async (request) => {
+      try {
+        const body = await request.json().catch(() => ({}));
+        const text = typeof body?.text === 'string' && body.text.trim().length > 0 ? body.text.trim() : '帮我整理一下 Excel 表格数据，检查公式';
+        const suggestion = await suggestFor(text, true);
+        pendingSuggestion = suggestion;
+        return json({ suggestion, text });
+      } catch (error) {
+        return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+      }
+    },
+  });
+
+  // #endregion
 }
 
 /**
@@ -1079,5 +1522,11 @@ function registerRoutes(ctx) {
  * @param {any} ctx Host context
  */
 export function apply(ctx) {
+  hostCtx = ctx;
   registerRoutes(ctx);
+  if (typeof ctx.on === 'function') {
+    ctx.on('agent/inbox/inserted', (payload) => {
+      void handleInboxMessage(payload);
+    });
+  }
 }

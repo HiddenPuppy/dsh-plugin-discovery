@@ -96,6 +96,60 @@ window.__ModuleLoader__.load({
       'toast.openGithub': '打开 GitHub',
       'toast.openPlugins': '查看已安装插件',
       'toast.close': '关闭',
+      'tab.discover': '发现',
+      'tab.manage': '管理',
+      'tab.aui': 'AUI',
+      'manage.title': '插件管理',
+      'manage.subtitle': '官方自带插件与本地已安装插件，可直接启停或卸载',
+      'manage.official': '官方插件',
+      'manage.installed': '已安装的第三方插件',
+      'manage.empty': '这里还没有插件',
+      'manage.loading': '正在读取插件列表…',
+      'manage.error': '读取插件列表失败：{error}',
+      'manage.refresh': '刷新',
+      'manage.list': '列表',
+      'manage.grid': '网格',
+      'manage.search': '搜索插件名称或描述…',
+      'manage.badge.official': '官方',
+      'manage.badge.installed': '已安装',
+      'manage.badge.optional': '可选',
+      'manage.badge.disabled': '已停用',
+      'manage.badge.error': '异常',
+      'manage.rows': '{count} 个组件',
+      'manage.enable': '启用',
+      'manage.disable': '停用',
+      'manage.remove': '卸载',
+      'manage.confirmRemove': '确认卸载',
+      'manage.cancel': '取消',
+      'manage.removing': '卸载中…',
+      'manage.saving': '处理中…',
+      'manage.restart': '需要重启 DSH 后生效',
+      'manage.officialHint': '官方插件随 DSH 提供，可停用但通常不建议卸载',
+      'manage.installedHint': '这些是你安装到当前 profile 的第三方插件，可停用或卸载',
+      'manage.uninstallHint': '卸载会移除依赖并取消启用，之后可以重新安装',
+      'aui.title': 'AUI · 对话中主动推荐插件',
+      'aui.desc': '开启后，DSH 会在对话中识别你的意图，在右下角弹出一张轻量卡片，推荐可能帮到你的插件；只有你点「安装」才会真正安装。',
+      'aui.enabled': '允许 DSH 在对话中推荐插件',
+      'aui.minScore': '匹配灵敏度',
+      'aui.cooldown': '冷却时间（秒）',
+      'aui.sensitivityLow': '更高（更容易推荐）',
+      'aui.sensitivityHigh': '更准（更少打扰）',
+      'aui.test': '试一下',
+      'aui.testPlaceholder': '输入一句你正在做的事，例如：帮我整理一下 Excel 表格数据',
+      'aui.testHint': '试一下只会在右下角弹出预览卡片，不会自动安装。',
+      'aui.notice': '匹配在本地完成，你的对话内容不会被发送到插件市场。',
+      'aui.close': '关闭',
+      'aui.saved': '已保存',
+      'aui.card.title': '发现一个可能帮到你的插件',
+      'aui.card.reason': '匹配到：{terms}',
+      'aui.card.install': '安装',
+      'aui.card.installing': '安装中…',
+      'aui.card.open': '看看同类插件',
+      'aui.card.ignore': '忽略',
+      'aui.card.mute': '不再提示',
+      'aui.card.installed': '已安装，刷新窗口即可使用',
+      'aui.card.failed': '安装失败：{error}',
+      'aui.card.footer': '在「插件发现 → AUI」里可以调整或关闭这个行为',
     };
 
     /** English dictionaries. */
@@ -172,6 +226,60 @@ window.__ModuleLoader__.load({
       'toast.openGithub': 'Open GitHub',
       'toast.openPlugins': 'Installed plugins',
       'toast.close': 'Close',
+      'tab.discover': 'Discover',
+      'tab.manage': 'Manage',
+      'tab.aui': 'AUI',
+      'manage.title': 'Plugin management',
+      'manage.subtitle': 'Bundled official plugins and third-party plugins installed in this profile',
+      'manage.official': 'Official plugins',
+      'manage.installed': 'Installed third-party plugins',
+      'manage.empty': 'Nothing here yet',
+      'manage.loading': 'Reading the plugin list…',
+      'manage.error': 'Could not read the plugin list: {error}',
+      'manage.refresh': 'Refresh',
+      'manage.list': 'List',
+      'manage.grid': 'Grid',
+      'manage.search': 'Search by name or description…',
+      'manage.badge.official': 'Official',
+      'manage.badge.installed': 'Installed',
+      'manage.badge.optional': 'Optional',
+      'manage.badge.disabled': 'Disabled',
+      'manage.badge.error': 'Problem',
+      'manage.rows': '{count} rows',
+      'manage.enable': 'Enable',
+      'manage.disable': 'Disable',
+      'manage.remove': 'Uninstall',
+      'manage.confirmRemove': 'Confirm uninstall',
+      'manage.cancel': 'Cancel',
+      'manage.removing': 'Removing…',
+      'manage.saving': 'Working…',
+      'manage.restart': 'Restart DSH for this to take effect',
+      'manage.officialHint': 'Official plugins ship with DSH; they can be disabled but are usually not uninstalled',
+      'manage.installedHint': 'Third-party plugins installed in this profile can be disabled or uninstalled',
+      'manage.uninstallHint': 'Uninstalling removes the dependency and the activation; you can install it again later',
+      'aui.title': 'AUI · proactive plugin suggestions',
+      'aui.desc': 'When enabled, DSH watches your intent in conversation and shows a small card in the bottom-right corner suggesting a plugin that might help. Nothing is installed until you press Install.',
+      'aui.enabled': 'Let DSH suggest plugins during conversation',
+      'aui.minScore': 'Match sensitivity',
+      'aui.cooldown': 'Cooldown (seconds)',
+      'aui.sensitivityLow': 'More suggestions',
+      'aui.sensitivityHigh': 'Fewer, more precise',
+      'aui.test': 'Try it',
+      'aui.testPlaceholder': 'Describe something you are doing, e.g. tidy up an Excel sheet',
+      'aui.testHint': 'Trying it only previews the card in the corner; nothing gets installed.',
+      'aui.notice': 'Matching happens locally; your conversation text is not sent to the plugin market.',
+      'aui.close': 'Close',
+      'aui.saved': 'Saved',
+      'aui.card.title': 'A plugin that might help',
+      'aui.card.reason': 'Matched: {terms}',
+      'aui.card.install': 'Install',
+      'aui.card.installing': 'Installing…',
+      'aui.card.open': 'Browse similar',
+      'aui.card.ignore': 'Ignore',
+      'aui.card.mute': 'Don\'t suggest again',
+      'aui.card.installed': 'Installed — refresh the window to use it',
+      'aui.card.failed': 'Install failed: {error}',
+      'aui.card.footer': 'Adjust or disable this in Plugin Discovery → AUI',
     };
 
     const CSS = `
@@ -266,9 +374,94 @@ window.__ModuleLoader__.load({
 .pd-note a{color:var(--dsw-alias-brand-primary,#2F6FED);text-decoration:none}
 .pd-note a:hover{text-decoration:underline}
 @media (max-width:860px){.pd-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.pd-scroll{padding:14px 12px 20px}.pd-hide-narrow{display:none}}
+.pd-tabs{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pd-tab{border:1px solid transparent;background:transparent;color:var(--dsw-alias-label-secondary,#667085);border-radius:8px;padding:5px 12px;font:inherit;font-size:12.5px;cursor:pointer}
+.pd-tab:hover{background:var(--dsw-alias-bg-layer-2,#f4f6fa)}
+.pd-tab.on{background:var(--dsw-alias-bg-layer-2,#eef2f8);color:var(--dsw-alias-label-primary,#101828);font-weight:600;border-color:var(--dsw-alias-border-l1,#e4e8f0)}
+.pd-tab.gear{margin-left:auto}
+.pd-manage-head{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.pd-seg{display:flex;border:1px solid var(--dsw-alias-border-l1,#e4e8f0);border-radius:8px;overflow:hidden}
+.pd-seg button{border:none;background:transparent;color:var(--dsw-alias-label-secondary,#667085);padding:5px 12px;font:inherit;font-size:12px;cursor:pointer}
+.pd-seg button.on{background:var(--dsw-alias-brand-primary,#2F6FED);color:#fff}
+.pd-manage-section{margin-top:14px}
+.pd-manage-section h3{margin:0 0 4px;font-size:13px;font-weight:600;display:flex;gap:8px;align-items:center}
+.pd-manage-section p.hint{margin:0 0 8px;font-size:11.5px;color:var(--dsw-alias-label-secondary,#667085)}
+.pd-bundle-list{display:flex;flex-direction:column;gap:8px}
+.pd-bundle{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--dsw-alias-border-l1,#e4e8f0);border-radius:10px;padding:10px 12px;background:var(--dsw-alias-bg-layer-1,#fff);min-width:0}
+.pd-bundle-main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:3px}
+.pd-bundle-title{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-weight:600;font-size:12.5px}
+.pd-bundle-name{font-size:11px;color:var(--dsw-alias-label-secondary,#667085);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all}
+.pd-bundle-desc{font-size:12px;color:var(--dsw-alias-label-secondary,#667085);line-height:1.55}
+.pd-bundle-actions{display:flex;gap:8px;align-items:center;flex:0 0 auto;flex-wrap:wrap;justify-content:flex-end}
+.pd-tag{font-size:10.5px;padding:0 6px;border-radius:4px;line-height:17px;border:1px solid var(--dsw-alias-border-l1,#e4e8f0);color:var(--dsw-alias-label-secondary,#667085)}
+.pd-tag.official{border-color:color-mix(in srgb,var(--dsw-alias-brand-primary,#2F6FED) 40%,transparent);color:var(--dsw-alias-brand-primary,#2F6FED)}
+.pd-tag.warn{color:var(--dsw-alias-state-warn-primary,#f79009);border-color:var(--dsw-alias-border-l1,#e4e8f0)}
+.pd-switch{position:relative;width:36px;height:20px;border-radius:10px;border:1px solid var(--dsw-alias-border-l1,#e4e8f0);background:var(--dsw-alias-bg-layer-2,#e9edf3);cursor:pointer;flex:0 0 auto;transition:background .15s;padding:0}
+.pd-switch:after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(16,24,40,.2);transition:left .15s}
+.pd-switch.on{background:var(--dsw-alias-brand-primary,#2F6FED);border-color:var(--dsw-alias-brand-primary,#2F6FED)}
+.pd-switch.on:after{left:18px}
+.pd-bundle-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.pd-bundle-grid .pd-bundle{flex-direction:column}
+.pd-bundle-grid .pd-bundle-actions{justify-content:flex-start}
+.pd-danger{color:var(--dsw-alias-state-error-primary,#B42318)}
+.pd-btn.danger{border-color:color-mix(in srgb,var(--dsw-alias-state-error-primary,#B42318) 45%,transparent);color:var(--dsw-alias-state-error-primary,#B42318)}
+.pd-modal-mask{position:fixed;inset:0;background:rgba(16,24,40,.45);z-index:80;display:flex;align-items:center;justify-content:center;padding:20px}
+.pd-modal{width:540px;max-width:100%;max-height:86vh;overflow:auto;background:var(--dsw-alias-bg-overlay,#fff);color:var(--dsw-alias-label-primary,#101828);border:1px solid var(--dsw-alias-border-l1,#e4e8f0);border-radius:12px;box-shadow:0 20px 60px rgba(16,24,40,.28);padding:16px 18px;box-sizing:border-box}
+.pd-modal h2{margin:0;font-size:15px;font-weight:600}
+.pd-modal p.desc{margin:6px 0 0;font-size:12px;line-height:1.7;color:var(--dsw-alias-label-secondary,#667085)}
+.pd-field{display:flex;align-items:center;gap:12px;margin-top:12px;font-size:12.5px}
+.pd-field > span{flex:0 0 130px;color:var(--dsw-alias-label-secondary,#667085)}
+.pd-field input[type=range]{flex:1 1 auto}
+.pd-field input[type=number],.pd-field input[type=text]{flex:1 1 auto;min-width:0;border:1px solid var(--dsw-alias-border-l1,#e4e8f0);border-radius:7px;padding:5px 8px;font:inherit;font-size:12.5px;background:var(--dsw-alias-bg-base,#fff);color:inherit}
+.pd-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.pd-aui{position:fixed;right:20px;bottom:88px;width:380px;max-width:calc(100vw - 40px);pointer-events:auto;z-index:70;background:var(--dsw-alias-bg-overlay,#fff);color:var(--dsw-alias-label-primary,#101828);border:1px solid var(--dsw-alias-border-l1,#e4e8f0);border-left:4px solid var(--dsw-alias-brand-primary,#2F6FED);border-radius:12px;box-shadow:0 14px 40px rgba(16,24,40,.22);padding:12px 14px;font-size:12.5px;line-height:1.6;animation:pd-pop .2s ease-out}
+.pd-aui-head{display:flex;align-items:flex-start;gap:8px}
+.pd-aui-title{font-weight:600;font-size:12.5px;flex:1 1 auto}
+.pd-aui-close{border:none;background:transparent;color:var(--dsw-alias-label-secondary,#667085);cursor:pointer;font-size:15px;line-height:1;padding:0 2px}
+.pd-aui-plugin{margin-top:8px;display:flex;flex-direction:column;gap:2px}
+.pd-aui-plugin b{font-size:13px}
+.pd-aui-plugin span{font-size:11px;color:var(--dsw-alias-label-secondary,#667085)}
+.pd-aui-desc{margin-top:4px;color:var(--dsw-alias-label-secondary,#667085);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.pd-aui-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.pd-aui-foot{margin-top:8px;font-size:10.5px;color:var(--dsw-alias-label-secondary,#667085);opacity:.85}
+.pd-aui-status{margin-top:6px;font-size:11.5px}
+.pd-aui-status.ok{color:var(--dsw-alias-state-success-primary,#12B76A)}
+.pd-aui-status.err{color:var(--dsw-alias-state-error-primary,#B42318)}
 `;
 
     const CATEGORY_ZH = new Map();
+
+    /** Cross-component intent: open the discovery view, optionally pre-filled with a query. */
+    const discoveryRequests = { query: '', listeners: new Set() };
+
+    /**
+     * Resolve the slot translator, falling back to the bundled dictionaries.
+     * @param {any} props slot props
+     * @returns {(key: string, vars?: Record<string, unknown>) => string} translator
+     */
+    function createTranslator(props) {
+      if (typeof props?.t === 'function') return props.t;
+      return (key, vars) => {
+        const template = zh[key] ?? en[key] ?? key;
+        if (!vars) return template;
+        return template.replace(/\{(\w+)\}/g, (match, name) => (name in vars ? String(vars[name]) : match));
+      };
+    }
+
+    /**
+     * Ask the discovery page to open (and optionally search for a phrase).
+     * @param {string} query search text
+     */
+    function requestDiscovery(query) {
+      discoveryRequests.query = typeof query === 'string' ? query : '';
+      for (const listener of discoveryRequests.listeners) {
+        try {
+          listener(discoveryRequests.query);
+        } catch {
+          /* a stale listener must not break the overlay */
+        }
+      }
+    }
 
     /**
      * Sidebar icon: a puzzle piece with a magnifier, drawn with currentColor so
@@ -368,13 +561,7 @@ window.__ModuleLoader__.load({
      * @returns {any} page element
      */
     function DiscoveryPage(props) {
-      const t = typeof props.t === 'function'
-        ? props.t
-        : (key, vars) => {
-            const template = zh[key] ?? en[key] ?? key;
-            if (!vars) return template;
-            return template.replace(/\{(\w+)\}/g, (match, name) => (name in vars ? String(vars[name]) : match));
-          };
+      const t = createTranslator(props);
 
       const [feed, setFeed] = React.useState(null);
       const [loading, setLoading] = React.useState(true);
@@ -386,6 +573,8 @@ window.__ModuleLoader__.load({
       const [sort, setSort] = React.useState('catalog');
       const [pageSize, setPageSize] = React.useState(50);
       const [page, setPage] = React.useState(1);
+      const [view, setView] = React.useState('discover');
+      const [showAui, setShowAui] = React.useState(false);
       const [installing, setInstalling] = React.useState(() => new Set());
       const [installedFull, setInstalledFull] = React.useState(() => new Set());
       const [installedBundles, setInstalledBundles] = React.useState([]);
@@ -402,6 +591,22 @@ window.__ModuleLoader__.load({
 
       React.useEffect(() => () => {
         if (toastTimer.current !== null) clearTimeout(toastTimer.current);
+      }, []);
+
+      // The AUI overlay can ask this page to open with a search phrase.
+      React.useEffect(() => {
+        const applyRequest = (requested) => {
+          setView('discover');
+          if (typeof requested === 'string' && requested.trim().length > 0) setQuery(requested.trim());
+        };
+        discoveryRequests.listeners.add(applyRequest);
+        if (discoveryRequests.query.length > 0) {
+          applyRequest(discoveryRequests.query);
+          discoveryRequests.query = '';
+        }
+        return () => {
+          discoveryRequests.listeners.delete(applyRequest);
+        };
       }, []);
 
       // Mark plugins that are already installed in this profile.
@@ -689,14 +894,30 @@ window.__ModuleLoader__.load({
         ),
       );
 
-      if (loading) {
-        return h('div', { className: 'pd-root' }, h('div', { className: 'pd-state' }, h('i', { className: 'pd-spin', style: { width: 18, height: 18, borderWidth: 2 } }), h('div', null, t('loading'))));
+      const tabs = h(
+        'div',
+        { className: 'pd-tabs' },
+        h('button', { key: 'discover', className: view === 'discover' ? 'pd-tab on' : 'pd-tab', onClick: () => setView('discover') }, t('tab.discover')),
+        h('button', { key: 'manage', className: view === 'manage' ? 'pd-tab on' : 'pd-tab', onClick: () => setView('manage') }, t('tab.manage')),
+        h('button', { key: 'aui', className: 'pd-tab gear', title: t('aui.title'), onClick: () => setShowAui(true) }, `⚙ ${t('tab.aui')}`),
+      );
+
+      const auiDialog = showAui ? h(AuiSettingsDialog, { t, onClose: () => setShowAui(false) }) : null;
+
+      const shell = (content) =>
+        h(
+          'div',
+          { className: 'pd-root' },
+          h('div', { className: 'pd-scroll' }, h('div', { className: 'pd-inner' }, head, tabs, content)),
+          auiDialog,
+        );
+
+      if (loading && rows.length === 0) {
+        return shell(h('div', { className: 'pd-state' }, h('i', { className: 'pd-spin', style: { width: 18, height: 18, borderWidth: 2 } }), h('div', null, t('loading'))));
       }
 
       if (error && rows.length === 0) {
-        return h(
-          'div',
-          { className: 'pd-root' },
+        return shell(
           h(
             'div',
             { className: 'pd-state' },
@@ -705,6 +926,10 @@ window.__ModuleLoader__.load({
             h('div', { style: { marginTop: 12 } }, h('button', { className: 'pd-btn', onClick: () => void refresh() }, t('error.retry'))),
           ),
         );
+      }
+
+      if (view === 'manage') {
+        return shell(h(ManagementView, { t }));
       }
 
       const summaryCard = h(
@@ -1008,33 +1233,459 @@ window.__ModuleLoader__.load({
         );
       };
 
-      return h(
-        'div',
-        { className: 'pd-root' },
+      return shell(
         h(
-          'div',
-          { className: 'pd-scroll' },
+          React.Fragment,
+          null,
+          syncError
+            ? h('div', { className: 'pd-card', style: { borderColor: 'var(--dsw-alias-state-warn-primary,#f79009)' } }, h('span', { className: 'pd-note pd-err' }, t('stale.warning', { error: syncError })))
+            : null,
+          summaryCard,
+          h('div', { className: 'pd-chips' }, chips),
+          toolbar,
+          renderInstallStatus(),
+          table,
           h(
             'div',
-            { className: 'pd-inner' },
-            head,
-            syncError
-              ? h('div', { className: 'pd-card', style: { borderColor: 'var(--dsw-alias-state-warn-primary,#f79009)' } }, h('span', { className: 'pd-note pd-err' }, t('stale.warning', { error: syncError })))
-              : null,
-            summaryCard,
-            h('div', { className: 'pd-chips' }, chips),
-            toolbar,
-            renderInstallStatus(),
-            table,
-            h(
-              'div',
-              { className: 'pd-note' },
-              h('div', null, t('footer.source'), ' · ', h('a', { href: 'https://github.com/bruc3van/awesome-dsh-plugin', target: '_blank', rel: 'noreferrer' }, 'bruc3van/awesome-dsh-plugin')),
-              h('div', null, t('footer.legend')),
-              h('div', null, t('footer.install')),
-            ),
+            { className: 'pd-note' },
+            h('div', null, t('footer.source'), ' · ', h('a', { href: 'https://github.com/bruc3van/awesome-dsh-plugin', target: '_blank', rel: 'noreferrer' }, 'bruc3van/awesome-dsh-plugin')),
+            h('div', null, t('footer.legend')),
+            h('div', null, t('footer.install')),
           ),
         ),
+      );
+    }
+
+    /**
+     * Read one bundle list and render it as a management page: official plugins
+     * and third-party plugins installed in this profile, with switches and uninstall.
+     * @param {{ t: (key: string, vars?: Record<string, unknown>) => string }} props slot props
+     * @returns {any} management view
+     */
+    function ManagementView(props) {
+      const t = createTranslator(props);
+      const [bundles, setBundles] = React.useState(null);
+      const [error, setError] = React.useState(null);
+      const [loading, setLoading] = React.useState(true);
+      const [mode, setMode] = React.useState('list');
+      const [query, setQuery] = React.useState('');
+      const [busy, setBusy] = React.useState('');
+      const [confirming, setConfirming] = React.useState('');
+      const [notice, setNotice] = React.useState('');
+
+      const load = React.useCallback(async () => {
+        setLoading(true);
+        try {
+          const response = await fetch('/api/plugin-discovery/bundles', { cache: 'no-store' });
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`);
+          setBundles(Array.isArray(body.bundles) ? body.bundles : []);
+          setError(null);
+        } catch (cause) {
+          setError(cause instanceof Error ? cause.message : String(cause));
+        } finally {
+          setLoading(false);
+        }
+      }, []);
+
+      React.useEffect(() => {
+        void load();
+      }, [load]);
+
+      const toggle = async (bundle) => {
+        if (busy.length > 0) return;
+        setBusy(bundle.name);
+        setNotice('');
+        try {
+          const response = await fetch('/api/plugin-discovery/bundles/enable', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', accept: 'application/json' },
+            body: JSON.stringify({ name: bundle.name, enabled: !bundle.enabled }),
+          });
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok || body.ok === false) throw new Error(body.error ?? `HTTP ${response.status}`);
+          setNotice(body.restartReason ? t('manage.restart') : '');
+          await load();
+        } catch (cause) {
+          setError(cause instanceof Error ? cause.message : String(cause));
+        } finally {
+          setBusy('');
+        }
+      };
+
+      const remove = async (name) => {
+        if (busy.length > 0) return;
+        setBusy(name);
+        setNotice('');
+        try {
+          const response = await fetch('/api/plugin-discovery/bundles/remove', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', accept: 'application/json' },
+            body: JSON.stringify({ name }),
+          });
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok || body.ok === false) throw new Error(body.error ?? `HTTP ${response.status}`);
+          setNotice(body.restartReason ? t('manage.restart') : '');
+          setConfirming('');
+          await load();
+        } catch (cause) {
+          setError(cause instanceof Error ? cause.message : String(cause));
+        } finally {
+          setBusy('');
+        }
+      };
+
+      const list = Array.isArray(bundles) ? bundles : [];
+      const matches = (bundle) => {
+        const needle = query.trim().toLowerCase();
+        if (needle.length === 0) return true;
+        return `${bundle.title ?? ''} ${bundle.name ?? ''} ${bundle.description ?? ''} ${bundle.metaDescription ?? ''}`.toLowerCase().includes(needle);
+      };
+      const official = list.filter((bundle) => bundle.official === true).filter(matches);
+      const thirdParty = list.filter((bundle) => bundle.official !== true && bundle.installed === true).filter(matches);
+
+      const renderBundle = (bundle) => {
+        const title = bundle.title || bundle.metaDescription || bundle.name;
+        const description = bundle.metaDescription || bundle.description || '';
+        return h(
+          'div',
+          { className: 'pd-bundle', key: bundle.name },
+          h(
+            'div',
+            { className: 'pd-bundle-main' },
+            h(
+              'div',
+              { className: 'pd-bundle-title' },
+              h('span', null, title),
+              bundle.official ? h('span', { className: 'pd-tag official' }, t('manage.badge.official')) : null,
+              bundle.official !== true && bundle.installed ? h('span', { className: 'pd-tag' }, t('manage.badge.installed')) : null,
+              bundle.optional ? h('span', { className: 'pd-tag' }, t('manage.badge.optional')) : null,
+              !bundle.enabled ? h('span', { className: 'pd-tag warn' }, t('manage.badge.disabled')) : null,
+              bundle.problem ? h('span', { className: 'pd-tag warn' }, t('manage.badge.error')) : null,
+            ),
+            h('div', { className: 'pd-bundle-name' }, `${bundle.name}${bundle.version ? ` @ ${bundle.version}` : ''}`),
+            description ? h('div', { className: 'pd-bundle-desc' }, description) : null,
+            Array.isArray(bundle.rows) && bundle.rows.length > 0 ? h('div', { className: 'pd-note' }, t('manage.rows', { count: bundle.rows.length })) : null,
+          ),
+          h(
+            'div',
+            { className: 'pd-bundle-actions' },
+            h('button', {
+              className: `pd-switch${bundle.enabled ? ' on' : ''}`,
+              disabled: busy.length > 0,
+              onClick: () => void toggle(bundle),
+              title: bundle.enabled ? t('manage.disable') : t('manage.enable'),
+              'aria-label': bundle.enabled ? t('manage.disable') : t('manage.enable'),
+              'aria-pressed': bundle.enabled,
+            }),
+            bundle.official !== true && bundle.removable
+              ? confirming === bundle.name
+                ? h('button', { className: 'pd-btn danger', disabled: busy.length > 0, onClick: () => void remove(bundle.name) }, busy === bundle.name ? t('manage.removing') : t('manage.confirmRemove'))
+                : h('button', { className: 'pd-btn', disabled: busy.length > 0, onClick: () => setConfirming(bundle.name) }, t('manage.remove'))
+              : null,
+            confirming === bundle.name ? h('button', { className: 'pd-btn', onClick: () => setConfirming('') }, t('manage.cancel')) : null,
+          ),
+        );
+      };
+
+      return h(
+        'div',
+        { className: 'pd-manage' },
+        h(
+          'div',
+          { className: 'pd-manage-head' },
+          h(
+            'label',
+            { className: 'pd-search' },
+            h('svg', { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, 'aria-hidden': true }, h('circle', { cx: 11, cy: 11, r: 6.5 }), h('path', { d: 'm16 16 4.2 4.2' })),
+            h('input', { type: 'search', value: query, placeholder: t('manage.search'), onChange: (event) => setQuery(event.target.value) }),
+          ),
+          h(
+            'div',
+            { className: 'pd-seg' },
+            h('button', { className: mode === 'list' ? 'on' : '', onClick: () => setMode('list') }, t('manage.list')),
+            h('button', { className: mode === 'grid' ? 'on' : '', onClick: () => setMode('grid') }, t('manage.grid')),
+          ),
+          h('button', { className: 'pd-btn', onClick: () => void load(), disabled: loading }, t('manage.refresh')),
+        ),
+        notice ? h('div', { className: 'pd-note', style: { color: 'var(--dsw-alias-state-success-primary,#12B76A)' } }, notice) : null,
+        error ? h('div', { className: 'pd-card pd-err', style: { marginTop: 10 } }, t('manage.error', { error })) : null,
+        loading && bundles === null ? h('div', { className: 'pd-state' }, h('i', { className: 'pd-spin' }), ' ', t('manage.loading')) : null,
+        h(
+          'section',
+          { className: 'pd-manage-section' },
+          h('h3', null, t('manage.official'), h('span', { className: 'pd-muted' }, official.length)),
+          h('p', { className: 'hint' }, t('manage.officialHint')),
+          official.length === 0
+            ? h('div', { className: 'pd-note' }, t('manage.empty'))
+            : h('div', { className: mode === 'grid' ? 'pd-bundle-grid' : 'pd-bundle-list' }, official.map(renderBundle)),
+        ),
+        h(
+          'section',
+          { className: 'pd-manage-section' },
+          h('h3', null, t('manage.installed'), h('span', { className: 'pd-muted' }, thirdParty.length)),
+          h('p', { className: 'hint' }, t('manage.installedHint')),
+          thirdParty.length === 0
+            ? h('div', { className: 'pd-note' }, t('manage.empty'))
+            : h('div', { className: mode === 'grid' ? 'pd-bundle-grid' : 'pd-bundle-list' }, thirdParty.map(renderBundle)),
+        ),
+        h('p', { className: 'pd-note', style: { marginTop: 12 } }, t('manage.uninstallHint')),
+      );
+    }
+
+    /**
+     * AUI settings dialog: switch, sensitivity, cooldown and a preview button.
+     * @param {{ t: (key: string, vars?: Record<string, unknown>) => string, onClose: () => void }} props dialog props
+     * @returns {any} dialog
+     */
+    function AuiSettingsDialog(props) {
+      const t = createTranslator(props);
+      const [settings, setSettings] = React.useState(null);
+      const [text, setText] = React.useState('帮我整理一下 Excel 表格数据，检查公式');
+      const [saved, setSaved] = React.useState(false);
+
+      React.useEffect(() => {
+        let cancelled = false;
+        (async () => {
+          try {
+            const response = await fetch('/api/plugin-discovery/aui', { cache: 'no-store' });
+            const body = await response.json();
+            if (!cancelled) setSettings(body.settings ?? { enabled: true, minScore: 3, cooldownSeconds: 120 });
+          } catch {
+            if (!cancelled) setSettings({ enabled: true, minScore: 3, cooldownSeconds: 120 });
+          }
+        })();
+        return () => {
+          cancelled = true;
+        };
+      }, []);
+
+      const save = async (patch) => {
+        try {
+          const response = await fetch('/api/plugin-discovery/aui', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', accept: 'application/json' },
+            body: JSON.stringify(patch),
+          });
+          const body = await response.json();
+          if (response.ok && body.settings) {
+            setSettings(body.settings);
+            setSaved(true);
+            setTimeout(() => setSaved(false), 1500);
+          }
+        } catch {
+          /* the dialog keeps its local value */
+        }
+      };
+
+      const test = async () => {
+        try {
+          await fetch('/api/plugin-discovery/aui/test', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', accept: 'application/json' },
+            body: JSON.stringify({ text }),
+          });
+        } catch {
+          /* preview is best-effort */
+        }
+      };
+
+      return h(
+        'div',
+        {
+          className: 'pd-modal-mask',
+          onClick: (event) => {
+            if (event.target === event.currentTarget) props.onClose();
+          },
+        },
+        h(
+          'div',
+          { className: 'pd-modal', role: 'dialog', 'aria-modal': true },
+          h('h2', null, t('aui.title')),
+          h('p', { className: 'desc' }, t('aui.desc')),
+          settings === null
+            ? h('div', { className: 'pd-note' }, t('loading'))
+            : h(
+                React.Fragment,
+                null,
+                h(
+                  'div',
+                  { className: 'pd-field' },
+                  h('span', null, t('aui.enabled')),
+                  h('button', {
+                    className: `pd-switch${settings.enabled ? ' on' : ''}`,
+                    onClick: () => void save({ enabled: !settings.enabled }),
+                    'aria-label': t('aui.enabled'),
+                    'aria-pressed': settings.enabled,
+                  }),
+                ),
+                h(
+                  'div',
+                  { className: 'pd-field' },
+                  h('span', null, t('aui.minScore')),
+                  h('input', {
+                    type: 'range',
+                    min: 1.5,
+                    max: 7,
+                    step: 0.5,
+                    value: settings.minScore,
+                    onChange: (event) => setSettings({ ...settings, minScore: Number(event.target.value) }),
+                    onMouseUp: () => void save({ minScore: settings.minScore }),
+                    onTouchEnd: () => void save({ minScore: settings.minScore }),
+                  }),
+                  h('span', { className: 'pd-muted' }, String(settings.minScore)),
+                ),
+                h(
+                  'div',
+                  { className: 'pd-field' },
+                  h('span', null, t('aui.cooldown')),
+                  h('input', {
+                    type: 'number',
+                    min: 0,
+                    max: 900,
+                    value: settings.cooldownSeconds,
+                    onChange: (event) => setSettings({ ...settings, cooldownSeconds: Number(event.target.value) }),
+                    onBlur: () => void save({ cooldownSeconds: settings.cooldownSeconds }),
+                  }),
+                ),
+                h('p', { className: 'desc' }, t('aui.notice')),
+                h(
+                  'div',
+                  { className: 'pd-field' },
+                  h('span', null, t('aui.test')),
+                  h('input', { type: 'text', value: text, placeholder: t('aui.testPlaceholder'), onChange: (event) => setText(event.target.value) }),
+                ),
+                h('div', { className: 'pd-note' }, t('aui.testHint')),
+              ),
+          h(
+            'div',
+            { className: 'pd-modal-actions' },
+            saved ? h('span', { className: 'pd-note' }, t('aui.saved')) : null,
+            h('button', { className: 'pd-btn', onClick: () => void test() }, t('aui.test')),
+            h('button', { className: 'pd-btn primary', onClick: () => props.onClose() }, t('aui.close')),
+          ),
+        ),
+      );
+    }
+
+    /**
+     * Frame-wide AUI card: shows the plugin suggested from the last user message.
+     * Polls the Host for a pending suggestion; never installs without a click.
+     * @param {{ t?: Function, openDiscovery?: (query: string) => void }} props slot props
+     * @returns {any} floating card or null
+     */
+    function AuiOverlay(props) {
+      const t = createTranslator(props);
+      const openDiscovery = typeof props.openDiscovery === 'function' ? props.openDiscovery : null;
+      const [suggestion, setSuggestion] = React.useState(null);
+      const [status, setStatus] = React.useState({ kind: '', message: '' });
+      const [busy, setBusy] = React.useState(false);
+      const lastId = React.useRef('');
+
+      React.useEffect(() => {
+        let alive = true;
+        let timer = null;
+        const poll = async () => {
+          try {
+            const response = await fetch(`/api/plugin-discovery/aui/suggestion?after=${encodeURIComponent(lastId.current)}`, { cache: 'no-store' });
+            if (response.ok) {
+              const body = await response.json();
+              if (alive && body.suggestion && body.suggestion.id !== lastId.current) {
+                lastId.current = body.suggestion.id;
+                setSuggestion(body.suggestion);
+                setStatus({ kind: '', message: '' });
+              }
+            }
+          } catch {
+            /* polling must stay quiet */
+          }
+          if (alive) timer = setTimeout(poll, 4000);
+        };
+        void poll();
+        return () => {
+          alive = false;
+          if (timer !== null) clearTimeout(timer);
+        };
+      }, []);
+
+      const dismiss = async (patch) => {
+        setSuggestion(null);
+        try {
+          await fetch('/api/plugin-discovery/aui/dismiss', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', accept: 'application/json' },
+            body: JSON.stringify({ id: lastId.current, ...patch }),
+          });
+        } catch {
+          /* dismiss is best-effort */
+        }
+      };
+
+      const install = async () => {
+        if (suggestion === null || busy) return;
+        setBusy(true);
+        setStatus({ kind: 'info', message: t('aui.card.installing') });
+        try {
+          const started = await fetch('/api/plugin-discovery/install', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', accept: 'application/json' },
+            body: JSON.stringify({ full: suggestion.plugin.full }),
+          });
+          const startBody = await started.json().catch(() => ({}));
+          if (!started.ok || typeof startBody.jobId !== 'string') throw new Error(startBody.error ?? `HTTP ${started.status}`);
+          const deadline = Date.now() + 5 * 60 * 1000;
+          let result = null;
+          while (Date.now() < deadline) {
+            await new Promise((resolve) => setTimeout(resolve, 1500));
+            const state = await fetch(`/api/plugin-discovery/install/status?id=${encodeURIComponent(startBody.jobId)}`, { cache: 'no-store' });
+            const body = await state.json().catch(() => ({}));
+            if (!state.ok) throw new Error(body.error ?? `HTTP ${state.status}`);
+            if (body.status === 'done') {
+              result = body.result;
+              break;
+            }
+          }
+          if (result?.ok) setStatus({ kind: 'ok', message: t('aui.card.installed') });
+          else setStatus({ kind: 'err', message: t('aui.card.failed', { error: result?.error ?? 'timeout' }) });
+        } catch (cause) {
+          setStatus({ kind: 'err', message: t('aui.card.failed', { error: cause instanceof Error ? cause.message : String(cause) }) });
+        } finally {
+          setBusy(false);
+        }
+      };
+
+      if (suggestion === null) return null;
+      const plugin = suggestion.plugin;
+      return h(
+        'div',
+        { className: 'pd-aui', role: 'status', 'aria-live': 'polite' },
+        h(
+          'div',
+          { className: 'pd-aui-head' },
+          h('div', { className: 'pd-aui-title' }, t('aui.card.title')),
+          h('button', { className: 'pd-aui-close', onClick: () => void dismiss({}), 'aria-label': t('toast.close') }, '×'),
+        ),
+        h('div', { className: 'pd-aui-plugin' }, h('b', null, plugin.name), h('span', null, `★ ${plugin.stars} · ${plugin.categoryZh || plugin.category || ''}`)),
+        h('div', { className: 'pd-aui-desc' }, plugin.zh || plugin.en || ''),
+        h('div', { className: 'pd-note' }, t('aui.card.reason', { terms: (suggestion.reason ?? []).join('、') })),
+        status.message.length > 0 ? h('div', { className: `pd-aui-status ${status.kind}` }, status.message) : null,
+        h(
+          'div',
+          { className: 'pd-aui-actions' },
+          h('button', { className: 'pd-btn primary', disabled: busy, onClick: () => void install() }, busy ? t('aui.card.installing') : t('aui.card.install')),
+          openDiscovery !== null
+            ? h('button', {
+                className: 'pd-btn',
+                onClick: () => {
+                  openDiscovery(plugin.name);
+                  void dismiss({});
+                },
+              }, t('aui.card.open'))
+            : null,
+          h('button', { className: 'pd-btn', onClick: () => void dismiss({}) }, t('aui.card.ignore')),
+          h('button', { className: 'pd-btn', onClick: () => void dismiss({ mutePlugin: true }) }, t('aui.card.mute')),
+        ),
+        h('div', { className: 'pd-aui-foot' }, t('aui.card.footer')),
       );
     }
 
@@ -1080,8 +1731,24 @@ window.__ModuleLoader__.load({
           },
         }),
       }, DiscoveryPage)), 'plugin-discovery: main panel');
+      ctx.effect(() => ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+        name: 'shell.overlay',
+        id: 'plugin-discovery-aui',
+        order: 50,
+        locale: NS,
+        inject: () => ({
+          openDiscovery: (query) => {
+            requestDiscovery(typeof query === 'string' ? query : '');
+            try {
+              ctx.layout.selectPanel(PANEL_ID);
+            } catch (error) {
+              console.error('plugin-discovery: cannot open the discovery panel', error);
+            }
+          },
+        }),
+      }, AuiOverlay)), 'plugin-discovery: AUI overlay');
     }
 
-    return { inject: ['slots', 'locale', 'layout'], apply, DiscoveryPage, DiscoveryIcon };
+    return { inject: ['slots', 'locale', 'layout'], apply, DiscoveryPage, DiscoveryIcon, ManagementView, AuiOverlay, AuiSettingsDialog };
   },
 });

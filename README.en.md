@@ -2,15 +2,13 @@
 
 [中文](README.md) | [**English**](README.en.md)
 
-## Latest v1.3.0 (2026-11-06)
+## Latest v1.4.0 (2026-11-06)
 
-[Release notes](https://github.com/HiddenPuppy/dsh-plugin-discovery/releases/tag/v1.3.0) · What changed:
+[Release notes](https://github.com/HiddenPuppy/dsh-plugin-discovery/releases/tag/v1.4.0) · What changed:
 
-- **Failed installs can be handled in place**: the status card now offers **Allow and retry** and **Install from npm instead**
-  - blocked build scripts → writes `allowBuilds` into this profile's `pnpm-workspace.yaml` and retries
-  - GitHub source unusable or fails to build while the same project publishes an npm package → install from npm, no build scripts
-- **Smarter install sources**: when GitHub is unreachable or a source package cannot build, the same project's npm package is detected automatically (e.g. `dsh-market` → `dshmarket@1.73.12`)
-- **Persistent installed marker**: **✓ Installed** survives reloads and restarts
+- **AUI — proactive plugin discovery in conversation**: while you describe a need, DSH shows a small suggestion card in the **bottom-right corner** (never inside the transcript). Nothing installs until you press Install. Configurable from **Plugin Discovery → ⚙ AUI** (enable, sensitivity, cooldown, and a “try it” preview).
+- **Plugin management page**: a **Manage** tab lists official bundled plugins and third-party plugins installed in this profile, with enable/disable, uninstall, and list / grid views.
+- Failed installs can be handled in place (Allow and retry / Install from npm), and the ✓ marker persists.
 - The catalog currently lists **24,075** plugins, **639** of which support one-click install from npm
 
 > A **Plugin Discovery** page under the DSH sidebar (below *Automations*): the complete GitHub-hosted DSH plugin marketplace, with 24k+ plugins, a one-sentence Chinese description for every project, GitHub README links and one-click installation.
@@ -33,6 +31,31 @@ The status card after an install (version, source and where to find it):
 - **One-click install**: every row has an **Install** button. It asks the DSH plugin manager to add that plugin to this profile, preferring the catalog's npm install target (639 plugins have one) and falling back to the GitHub repository. While it runs the page shows progress; when it finishes an inline status card says **whether it worked**, the installed version and **roughly where to find it** (sidebar / settings / agent tools / slash commands / notifications …), plus how to fix common failures (build scripts blocked, network unreachable, already installed, not a bundle).
 - **Installed markers**: plugins already present in this profile show **✓ Installed** instead of the install button.
 - **Failures are actionable**: blocked build scripts get an **Allow and retry** button (writes `allowBuilds` into this profile's `pnpm-workspace.yaml`); when the GitHub source is unusable but the same project publishes an npm package, the card offers **Install from npm instead**, which needs no build scripts.
+- **AUI — proactive discovery**: while you describe a need in conversation, the Host matches the catalog locally and floats the best plugin in the bottom-right corner; nothing installs before you confirm, and everything is configurable from **⚙ AUI**.
+- **Plugin management**: a **Manage** tab integrates official and installed third-party plugin enable/disable and uninstall, with list and grid views.
+
+## AUI (agent-facing UI)
+
+![AUI suggestion card](docs/aui.png)
+
+Describe a need in conversation (for example “tidy up this Excel sheet and check the formulas”) and the plugin matches it against the 24k-entry catalog locally, then floats the best candidate in the **bottom-right corner**:
+
+- **Never interrupts the transcript** — the card lives in the frame overlay
+- **You confirm** — Install only runs when you press it; Ignore / Don't suggest again are one click away
+- **Local only** — matching happens inside the Host process; conversation text is never sent to the market
+- **Configurable** — open **⚙ AUI** for the switch, match sensitivity, cooldown, and a “try it” preview
+- **Related results** — “Browse similar” opens Plugin Discovery pre-filled with the plugin name
+
+## Plugin management
+
+![Plugin management](docs/management.png)
+
+The **Manage** tab brings DSH's plugin management into this page:
+
+- **Official plugins** — bundled with DSH (including optional experimental ones), with switches and a disabled marker
+- **Installed third-party plugins** — plugins installed in this profile, with switches and a two-step uninstall
+- **List / grid** — list by default, one click to the grid layout, plus search filtering
+- Enable/disable and uninstall go through the DSH plugin manager, and restart requirements are reported
 
 ## Install
 
@@ -100,6 +123,8 @@ The Host half registers two routes on DSH's authenticated API channel:
 - `GET /api/plugin-discovery/meta` — sync status (last sync time, refreshing, error message)
 - `POST /api/plugin-discovery/install` — starts installing one catalog repository through `ctx.pluginManager`; returns a job id
 - `POST /api/plugin-discovery/install/approve` — retries the last failed install with the approval it needs (write `allowBuilds`, approve build scripts, or switch to the npm package)
+- `GET /api/plugin-discovery/bundles`, `POST …/bundles/enable`, `POST …/bundles/remove` — official / installed bundle list, switches and uninstall for the Manage tab
+- `GET/POST /api/plugin-discovery/aui`, `GET …/aui/suggestion`, `POST …/aui/dismiss`, `POST …/aui/test` — AUI settings, pending suggestion, dismiss and preview
 - `GET /api/plugin-discovery/install/status?id=…` — job state and the final install result (friendly error + placement hints)
 - `GET /api/plugin-discovery/installed` — bundles already installed in this profile (for the ✓ marker)
 
@@ -119,6 +144,7 @@ MIT
 
 ## Changelog
 
+- **1.4.0** — Adds AUI (proactive, bottom-right plugin suggestions matched locally while you chat, install only after confirmation, configurable) and a **Manage** tab that integrates official and installed third-party plugin enabling, disabling, uninstalling and list/grid views.
 - **1.3.0** — Failed installs are handled in place: the status card offers **Allow and retry** (writes `allowBuilds`) and **Install from npm instead** (when the same repository publishes an npm package), and the ✓ marker is persisted. Fixes the missing build-approval entry on the built-in Plugins page (git source `prepare` scripts have no UI there).
 - **1.2.0** — One-click install: each row gains an **Install** button that installs the plugin into the current DSH profile through the plugin manager (npm install target first), then reports success/failure, the installed version and where to find it. Already-installed plugins are marked ✓. Failures are classified into actionable messages (build scripts blocked, network unreachable, already installed, not a DSH bundle). Catalog now lists 24,075 plugins.
 - **1.1.0** — Fixed the Refresh button failing with `upstream 404` whenever the upstream catalog renamed or split its volume files. Volume names are now discovered at runtime (repository archive first, then `CATALOG.md` + per-file mirror chain), so the page keeps refreshing as the catalog grows. Catalog now lists 23,659 plugins.

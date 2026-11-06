@@ -53,7 +53,13 @@ const fakeManager = {
     return { changed: true, application: 'applied', stage: 'install', target: '@demo/dsh-demo', bundle: '@demo/dsh-demo', version: '1.2.3' };
   },
   async listBundles() {
-    return [installedBundle];
+    return [installedBundle, { name: '@deepseek-ai/dsh-base', official: true, installed: false, enabled: true, version: '0.2.1-rc.5', description: 'core', meta: { title: '基础能力' }, rows: [], removable: false }];
+  },
+  async setBundleEnabled() {
+    return { changed: true, application: 'applied' };
+  },
+  async removeBundle() {
+    return { changed: true, application: 'applied' };
   },
 };
 
@@ -140,6 +146,21 @@ const bad = await routes.get('/api/plugin-discovery/install')(new Request('http:
   body: JSON.stringify({ full: 'not-a-repo' }),
 }));
 console.log('invalid repo status', bad.status);
+
+// management + AUI routes
+const bundlesResponse = await (await routes.get('/api/plugin-discovery/bundles')(new Request('http://localhost/api/plugin-discovery/bundles'))).json();
+console.log('bundles:', bundlesResponse.bundles?.length, bundlesResponse.bundles?.map((b) => `${b.name}:${b.official ? 'official' : 'third'}`).join(','));
+const enableResponse = await (await routes.get('/api/plugin-discovery/bundles/enable')(new Request('http://localhost/api/plugin-discovery/bundles/enable', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'dsh-demo', enabled: false }) }))).json();
+console.log('enable:', enableResponse.ok, enableResponse.application);
+const auiGet = await (await routes.get('/api/plugin-discovery/aui')(new Request('http://localhost/api/plugin-discovery/aui'))).json();
+console.log('aui settings:', auiGet.settings);
+const auiPost = await (await routes.get('/api/plugin-discovery/aui')(new Request('http://localhost/api/plugin-discovery/aui', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled: true, minScore: 3.5 }) }))).json();
+console.log('aui saved:', auiPost.settings);
+const testResponse = await (await routes.get('/api/plugin-discovery/aui/test')(new Request('http://localhost/api/plugin-discovery/aui/test', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: '帮我整理一下 Excel 表格数据，检查公式' }) }))).json();
+console.log('aui suggestion:', testResponse.suggestion?.plugin?.full, testResponse.suggestion?.reason);
+const suggestionResponse = await (await routes.get('/api/plugin-discovery/aui/suggestion')(new Request('http://localhost/api/plugin-discovery/aui/suggestion'))).json();
+console.log('pending suggestion:', suggestionResponse.suggestion?.plugin?.full);
+await routes.get('/api/plugin-discovery/aui/dismiss')(new Request('http://localhost/api/plugin-discovery/aui/dismiss', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ mutePlugin: true }) }));
 
 // failing upstream keeps serving the cached payload
 failArchive = true;
