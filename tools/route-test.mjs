@@ -71,9 +71,14 @@ const services = {
     stream(options) {
       return (async function* stream() {
         const prompt = options.messages?.[0]?.content?.[0]?.text ?? '';
-        const candidate = /^\d+\.\s+(\S+\/\S+)/m.exec(prompt);
-        const plugin = candidate?.[1] ?? null;
-        const answer = JSON.stringify({ suggest: plugin !== null, plugin, confidence: 0.9, reason: '测试判定' });
+        let answer;
+        if (prompt.includes('最近的用户消息')) {
+          answer = JSON.stringify({ goal: '整理一份 Excel 台账并检查公式', needs: ['读写 xlsx', '检查公式'], queries: ['excel 表格 公式', 'xlsx 台账 审计'] });
+        } else {
+          const candidate = /^\d+\.\s+(\S+\/\S+)/m.exec(prompt);
+          const plugin = candidate?.[1] ?? null;
+          answer = JSON.stringify({ solves: plugin !== null, plugin, fit: 0.9, why: '测试判定：能直接完成这件事', missing: [] });
+        }
         yield { type: 'text-delta', index: 0, text: answer };
       })();
     },
@@ -181,7 +186,7 @@ const first = await mod.decideAui('帮我把这份 Excel 台账整理一下，�
 console.log('aui real-path suggestion:', first.suggestion?.plugin?.full ?? null, 'decision:', first.decision?.suggest);
 const second = await mod.decideAui('帮我把网页上的表格抓下来存成文档', { sessionId: 'session-1' });
 console.log('aui gated second message:', second.suggestion === null, 'reason:', second.decision?.reason);
-await routes.get('/api/plugin-discovery/aui')(new Request('http://localhost/api/plugin-discovery/aui', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ maxPerSession: 1, cooldownSeconds: 0 }) }));
+await routes.get('/api/plugin-discovery/aui')(new Request('http://localhost/api/plugin-discovery/aui', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ maxPerSession: 1, cooldownSeconds: 0, runGapSeconds: 0, maxRunsPerHour: 60 }) }));
 const third = await mod.decideAui('我想把网页抓取下来', { sessionId: 'session-2' });
 console.log('aui session cap:', third.suggestion !== null, 'reason:', third.decision?.reason);
 const fourth = await mod.decideAui('我想把网页抓取下来', { sessionId: 'session-2' });

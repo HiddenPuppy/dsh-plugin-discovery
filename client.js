@@ -128,13 +128,15 @@ window.__ModuleLoader__.load({
       'manage.installedHint': '这些是你安装到当前 profile 的第三方插件，可停用或卸载',
       'manage.uninstallHint': '卸载会移除依赖并取消启用，之后可以重新安装',
       'aui.title': 'AUI · 对话中主动推荐插件',
-      'aui.desc': '开启后，DSH 会先用本地检索找出候选插件，再让模型静默判断「这条消息是否真的需要某个插件」；只有判断值得且置信度足够时，才会在右下角弹出轻量卡片。只有你点「安装」才会真正安装。',
+      'aui.desc': '开启后，DSH 会在后台起一个轻量的「插件顾问」思考线程：先读懂你这句话真正想解决的问题，再去插件市场里找「刚好能解决它」的插件；判断不准或没有合适的就不弹。只有你点「安装」才会真正安装。',
       'aui.enabled': '允许 DSH 在对话中推荐插件',
-      'aui.minConfidence': '最低置信度',
+      'aui.minFit': '最低贴合度',
       'aui.cooldown': '冷却时间（秒）',
       'aui.maxPerHour': '每小时最多推荐',
       'aui.maxPerSession': '每个会话最多推荐',
-      'aui.quietHint': '默认偏安静：冷却 4 分钟、每小时最多 4 次、每会话最多 2 次。',
+      'aui.maxRunsPerHour': '每小时最多思考',
+      'aui.runGap': '两次思考最小间隔（秒）',
+      'aui.quietHint': '默认偏安静：冷却 4 分钟、每小时最多推荐 4 次、每会话 2 次；后台思考每小时最多 12 次。',
       'aui.test': '试一下',
       'aui.testPlaceholder': '输入一句你正在做的事，例如：帮我整理一下 Excel 表格数据',
       'aui.testHint': '试一下只会在右下角弹出预览卡片，不会自动安装。',
@@ -288,13 +290,15 @@ window.__ModuleLoader__.load({
       'manage.installedHint': 'Third-party plugins installed in this profile can be disabled or uninstalled',
       'manage.uninstallHint': 'Uninstalling removes the dependency and the activation; you can install it again later',
       'aui.title': 'AUI · proactive plugin suggestions',
-      'aui.desc': 'When enabled, DSH first recalls candidate plugins locally, then asks the model to silently judge whether this message really needs one. Only a confident, worthwhile match shows a small bottom-right card, and nothing installs until you press Install.',
+      'aui.desc': 'When enabled, DSH runs a lightweight “plugin advisor” thinking thread in the background: it first works out the concrete problem behind your message, then looks for a plugin that solves exactly that; if it is not sure or nothing fits, it stays quiet. Nothing installs until you press Install.',
       'aui.enabled': 'Let DSH suggest plugins during conversation',
-      'aui.minConfidence': 'Minimum confidence',
+      'aui.minFit': 'Minimum fit',
       'aui.cooldown': 'Cooldown (seconds)',
-      'aui.maxPerHour': 'Max per hour',
-      'aui.maxPerSession': 'Max per session',
-      'aui.quietHint': 'Quiet by default: 4-minute cooldown, at most 4 per hour and 2 per session.',
+      'aui.maxPerHour': 'Max suggestions per hour',
+      'aui.maxPerSession': 'Max suggestions per session',
+      'aui.maxRunsPerHour': 'Max thinking runs per hour',
+      'aui.runGap': 'Minimum gap between runs (seconds)',
+      'aui.quietHint': 'Quiet by default: 4-minute cooldown, at most 4 suggestions per hour and 2 per session; at most 12 background thinking runs per hour.',
       'aui.test': 'Try it',
       'aui.testPlaceholder': 'Describe something you are doing, e.g. tidy up an Excel sheet',
       'aui.testHint': 'Trying it only previews the card in the corner; nothing gets installed.',
@@ -1619,9 +1623,9 @@ window.__ModuleLoader__.load({
           try {
             const response = await fetch('/api/plugin-discovery/aui', { cache: 'no-store' });
             const body = await response.json();
-            if (!cancelled) setSettings(body.settings ?? { enabled: true, minConfidence: 0.6, cooldownSeconds: 240, maxPerHour: 4, maxPerSession: 2 });
+            if (!cancelled) setSettings(body.settings ?? { enabled: true, minFit: 0.6, cooldownSeconds: 240, maxPerHour: 4, maxPerSession: 2, maxRunsPerHour: 12, runGapSeconds: 20 });
           } catch {
-            if (!cancelled) setSettings({ enabled: true, minConfidence: 0.6, cooldownSeconds: 240, maxPerHour: 4, maxPerSession: 2 });
+            if (!cancelled) setSettings({ enabled: true, minFit: 0.6, cooldownSeconds: 240, maxPerHour: 4, maxPerSession: 2, maxRunsPerHour: 12, runGapSeconds: 20 });
           }
         })();
         return () => {
@@ -1691,18 +1695,18 @@ window.__ModuleLoader__.load({
                 h(
                   'div',
                   { className: 'pd-field' },
-                  h('span', null, t('aui.minConfidence')),
+                  h('span', null, t('aui.minFit')),
                   h('input', {
                     type: 'range',
                     min: 0.3,
                     max: 0.95,
                     step: 0.05,
-                    value: settings.minConfidence ?? 0.6,
-                    onChange: (event) => setSettings({ ...settings, minConfidence: Number(event.target.value) }),
-                    onMouseUp: () => void save({ minConfidence: settings.minConfidence }),
-                    onTouchEnd: () => void save({ minConfidence: settings.minConfidence }),
+                    value: settings.minFit ?? 0.6,
+                    onChange: (event) => setSettings({ ...settings, minFit: Number(event.target.value) }),
+                    onMouseUp: () => void save({ minFit: settings.minFit }),
+                    onTouchEnd: () => void save({ minFit: settings.minFit }),
                   }),
-                  h('span', { className: 'pd-muted' }, `${Math.round((settings.minConfidence ?? 0.6) * 100)}%`),
+                  h('span', { className: 'pd-muted' }, `${Math.round((settings.minFit ?? 0.6) * 100)}%`),
                 ),
                 h(
                   'div',
@@ -1741,6 +1745,32 @@ window.__ModuleLoader__.load({
                     value: settings.maxPerSession ?? 2,
                     onChange: (event) => setSettings({ ...settings, maxPerSession: Number(event.target.value) }),
                     onBlur: () => void save({ maxPerSession: settings.maxPerSession }),
+                  }),
+                ),
+                h(
+                  'div',
+                  { className: 'pd-field' },
+                  h('span', null, t('aui.maxRunsPerHour')),
+                  h('input', {
+                    type: 'number',
+                    min: 1,
+                    max: 60,
+                    value: settings.maxRunsPerHour ?? 12,
+                    onChange: (event) => setSettings({ ...settings, maxRunsPerHour: Number(event.target.value) }),
+                    onBlur: () => void save({ maxRunsPerHour: settings.maxRunsPerHour }),
+                  }),
+                ),
+                h(
+                  'div',
+                  { className: 'pd-field' },
+                  h('span', null, t('aui.runGap')),
+                  h('input', {
+                    type: 'number',
+                    min: 0,
+                    max: 300,
+                    value: settings.runGapSeconds ?? 20,
+                    onChange: (event) => setSettings({ ...settings, runGapSeconds: Number(event.target.value) }),
+                    onBlur: () => void save({ runGapSeconds: settings.runGapSeconds }),
                   }),
                 ),
                 h('div', { className: 'pd-note' }, t('aui.quietHint')),

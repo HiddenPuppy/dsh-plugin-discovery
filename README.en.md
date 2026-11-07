@@ -2,14 +2,15 @@
 
 [中文](README.md) | [**English**](README.en.md)
 
-## Latest v1.8.0 (2026-11-07)
+## Latest v1.9.0 (2026-11-07)
 
-[Release notes](https://github.com/HiddenPuppy/dsh-plugin-discovery/releases/tag/v1.8.0) · This release redesigns how plugin usage is presented:
+[Release notes](https://github.com/HiddenPuppy/dsh-plugin-discovery/releases/tag/v1.9.0) · AUI got a new way of thinking:
 
-- **No more a big flat block**: usage data moved behind a **Usage log** button in the Manage toolbar, so the plugin list stays the main content
-- **Inline usage**: a third-party tool plugin shows one subtle line in its own card (“3 uses · 2 days ago”)
-- **Only when needed**: a suggestion strip appears above the list only when a plugin is really installed but rarely used, expandable to uninstall
-- **UI plugins stay out of the way**: themes and previewers are not counted and are only mentioned in one line at the bottom of the usage dialog, never mis-flagged as unused
+- **AUI is now a lightweight background thinking thread**: instead of doing a synchronous text match after each message, it first understands the concrete problem behind your message, then generates market search queries, then decides whether a plugin solves *exactly* that
+- **Better to stay quiet than to approximate**: related-only plugins, or ones that still need you to do most of the work, are not suggested
+- **Bounded energy**: background thinking has hourly and minimum-gap limits; suggestions keep their cooldown / hourly / per-session caps, all configurable in **⚙ AUI**
+- Golden set: **23/26 needs matched, 0/10 false positives (91.7% accuracy)**; a card typically appears in **4–5 s**
+- It will still stay quiet for requests no single plugin can cover (all-in-one sidebar, Bilibili daily digest, sales CRM) rather than pushing a partial match
 
 > A **Plugin Discovery** page under the DSH sidebar (below *Automations*): the complete GitHub-hosted DSH plugin marketplace, with 24k+ plugins, a one-sentence Chinese description for every project, GitHub README links and one-click installation.
 
@@ -45,20 +46,32 @@ Either way, **installing still requires your click**, and AUI can be switched of
 
 ![AUI suggestion card](docs/aui.png)
 
-Describe a concrete need in conversation (for example “tidy up this sales ledger and check the formulas”), and AUI first shortlists a dozen candidates from the 24k catalog, then asks the model to read them:
+AUI no longer does a synchronous text match after every message. It runs a lightweight “plugin advisor” thinking thread in the background:
 
-- if one plugin genuinely helps, a bottom-right card appears with the reason and a confidence level
-- for chit-chat, coding questions, concept explanations, or low confidence, nothing appears and the conversation continues
+1. **Understand**: read the recent conversation, work out the concrete problem (goal + required capabilities), and generate market search queries — covering both plugin jargon and how you phrased it
+2. **Retrieve**: recall candidate plugins from the 24k catalog with those queries
+3. **Decide**: ask the model to check each candidate against “solves exactly this”, rejecting related-but-partial matches
+4. **Retry if needed**: when the first round finds nothing, retrieve again with the missing capabilities
 
-The card offers **Install**, **Ignore** and **Don't suggest again**.
+Only “exact fit + fit threshold + frequency budget” produces a bottom-right card, and **installing still requires your click**.
 
-- **Speed**: typically 2–3 s from message to card
-- **Quiet by default**: at most one suggestion every 4 minutes, 4 per hour and 2 per session; if the model is unsure, nothing is shown and there is no keyword fallback
-- **Configurable**: **⚙ AUI** holds the switch, minimum confidence, cooldown and caps, plus a “try it” preview
+- **Speed**: typically 4–5 s from message to card (two model calls; chat/trivia skips the second call and is faster)
+- **Bounded energy**: at most 12 background thinking runs per hour with a 20 s minimum gap by default; silent when the model is unavailable
+- **Quiet by default**: 4-minute cooldown, at most 4 suggestions per hour and 2 per session
+- **Configurable**: **⚙ AUI** exposes minimum fit, thinking caps and suggestion caps, plus a “try it” preview
 
 ### How well does it work?
 
-The repo ships a 36-case golden set: 26 real needs and 10 everyday chats that must stay quiet (including the xiaohongshu-video mis-suggestion from earlier). Current result: **25/26 needs matched, all 10 everyday chats stayed quiet (0 false positives), 97.2% accuracy**. Full report: `tools/aui-eval-report.md`; reproduce with `tools/aui-eval.py`.
+The repo ships a 36-case golden set: 26 real needs and 10 everyday chats that must stay quiet (including the xiaohongshu-video mis-suggestion from earlier). Current result:
+
+| Metric | Result |
+| --- | --- |
+| Needs matched | **23 / 26** |
+| False positives | **0 / 10** |
+| Accuracy / precision | **91.7% / 100%** |
+| Average decision time | ~4.4 s |
+
+The remaining 3 are requests no single plugin fully covers (all-in-one sidebar, Bilibili daily digest, sales CRM) — AUI stays quiet instead of suggesting a partial match. Full report: `tools/aui-eval-report.md`; reproduce with `tools/aui-eval.py`.
 
 ## Plugin usage (local log)
 
@@ -181,6 +194,7 @@ MIT
 
 ## Changelog
 
+- **1.9.0** — AUI is rebuilt as a lightweight background thinking thread: understand the problem, generate market queries, retrieve, decide “exact fit”, retry once when needed; adds hourly/min-gap energy caps and renames minimum confidence to minimum fit. Golden set: 23/26 matched, 0/10 false positives (91.7%), ~4.4 s average.
 - **1.8.0** — Redesigns the usage presentation: a toolbar entry, one inline line per tool plugin, and a reminder strip only when something is actually idle; UI plugins no longer take up space. Data and statistics are unchanged.
 - **1.7.0** — Adds local plugin usage tracking: tool calls, installs/removals and AUI suggestions are logged; the Manage tab shows uses and last use per third-party plugin and lists “installed but rarely used” plugins for one-click cleanup, with AUI able to re-find them later. Removes the misleading “Browse similar plugins” action.
 - **1.6.0** — AUI is faster and more accurate: “Browse similar plugins” now opens the real category (no exact-name search), polling drops from 4 s to 1 s, and the judge is more robust; on the 36-case golden set, 25/26 needs matched with 0/10 false positives (97.2%). README gains a plain-language GUI vs AUI explainer and a similar-plugins screenshot.

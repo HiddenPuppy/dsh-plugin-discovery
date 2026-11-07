@@ -35,7 +35,8 @@
       "kind": "positive",
       "text": "想看清楚现在上下文窗口里到底装了什么，好判断什么时候该压缩",
       "expect": [
-        "bowenliang123/dsh-context"
+        "bowenliang123/dsh-context",
+        "mounta1n-18/dsh-context-usage"
       ],
       "note": "上下文可视化"
     },
@@ -58,7 +59,8 @@
         "Aisland-SJL/dsh-worktable",
         "Fayelin12/dsh-office",
         "toolclub/dsh-agent-team-gui",
-        "Qianrushixiaobai/dsh-agentmonitor"
+        "Qianrushixiaobai/dsh-agentmonitor",
+        "jinhun-tqtteam/dsh-dashboard"
       ],
       "note": "多项目管理台"
     },
@@ -71,7 +73,10 @@
         "Tencent/BrowserSkill",
         "Fisfzy/dsh-ego-browser",
         "wanwujiehuyi-web/dsh-omni-browser",
-        "titanwings/dsh-better-browser"
+        "titanwings/dsh-better-browser",
+        "xianmua/dsh-browser-relay",
+        "angelky7/dsh-browser-control",
+        "ZeaoZhang/dsh-browser-control"
       ],
       "note": "浏览器自动化"
     },
@@ -114,7 +119,8 @@
         "mem9-ai/mem9",
         "omdsh-dev/dsh-mnemon",
         "slow-stack/mneme",
-        "JunNanLYS/dsh-layered-memory"
+        "JunNanLYS/dsh-layered-memory",
+        "hr98w/dsh-memory"
       ],
       "note": "长期记忆"
     },
@@ -126,7 +132,8 @@
         "omdsh-dev/dsh-lark",
         "xmanrui/dsh-im",
         "wenbin-wb/dsh-bridge",
-        "amlyczz/dsh-lark-link"
+        "amlyczz/dsh-lark-link",
+        "PlutoKeating/dsh-lark-bot"
       ],
       "note": "飞书/IM 接入"
     },
@@ -171,7 +178,8 @@
         "WizisCool/dsh-ears",
         "PerryLink/dsh-talk",
         "3274375092/dsh-voice",
-        "chentao4183/dsh-voice-suite"
+        "chentao4183/dsh-voice-suite",
+        "NewDaNew/dsh-voice-input"
       ],
       "note": "语音输入"
     },
@@ -181,7 +189,9 @@
       "text": "想让它每天固定时间自动跑一个任务，比如早上汇总昨天的数据",
       "expect": [
         "titanwings/dsh-automation",
-        "GooDAnDReaDY/dsh-cron"
+        "GooDAnDReaDY/dsh-cron",
+        "iStarryDust/dsh-scheduled-tasks",
+        "uluckystar/dsh-schedule-tasks"
       ],
       "note": "定时/自动化"
     },
@@ -232,7 +242,8 @@
         "feiyang-dev/dsh-usage-plugin",
         "kenz1117/dsh-ui-usage-billing",
         "Han-1413141/dsh-cost-meter",
-        "newbieYi/dsh-cost-stats"
+        "newbieYi/dsh-cost-stats",
+        "Jun-Jun-Gao/dsh-token-usage-panel"
       ],
       "note": "用量与花费"
     },
@@ -245,7 +256,8 @@
         "SCSpotato/dsh-remote",
         "dingchenhui0618-arch/dsh-in-hand",
         "zexadev/dsh-tether",
-        "mrRisega/dsh-remote"
+        "mrRisega/dsh-remote",
+        "liguobao/ds-harness-remote"
       ],
       "note": "手机远程"
     },
@@ -261,7 +273,8 @@
         "yunfeizhu/dsh-pptx-editor",
         "ZhdanovDmitriy/dsh-pptx-builder",
         "rong-coder/dsh-office-tool",
-        "kw78/dsh-office-tools"
+        "kw78/dsh-office-tools",
+        "TANGZHUO12/ppt-expert"
       ],
       "note": "PPT 生成"
     },
@@ -275,7 +288,8 @@
         "Anionex/dsh-vision-toolkit",
         "xiaoyuink/dsh-image-vision",
         "vuvanmai936-dot/dsh-ocr-bridge",
-        "xby-skill/xby-ocr-pro"
+        "xby-skill/xby-ocr-pro",
+        "grelvan/dsh-ocr-local"
       ],
       "note": "OCR/图片识别"
     },
@@ -284,7 +298,8 @@
       "kind": "positive",
       "text": "想让回复里带点自定义表情包，比如 B 站和小红书的",
       "expect": [
-        "hellodigua/dsh-emoji"
+        "hellodigua/dsh-emoji",
+        "yyh-001/dsh-meme"
       ],
       "note": "表情包"
     },
@@ -294,7 +309,9 @@
       "text": "把这份几十页的英文 PDF 翻译成中文，最好保留原来的排版",
       "expect": [
         "csukingzq/dsh-pdf-translator",
-        "MARIOMLY/dsh-pdf-translate"
+        "MARIOMLY/dsh-pdf-translate",
+        "reliable-ly0411/babeldoc-pdf-translate",
+        "l2685209197/dsh-pdf-translate"
       ],
       "note": "PDF 翻译"
     },
