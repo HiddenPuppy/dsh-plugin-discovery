@@ -37,6 +37,9 @@ window.__ModuleLoader__.load({
       'action.open': '打开项目',
       'filter.all': '全部',
       'filter.other': '其他',
+      'similar.title': '同类插件',
+      'similar.count': '共 {count} 个，按最高 Star 排序',
+      'similar.clear': '清除筛选',
       'filter.search': '搜索插件名称、简介或主题…',
       'sort.label': '排序',
       'sort.catalog': '全部（目录顺序）',
@@ -168,6 +171,9 @@ window.__ModuleLoader__.load({
       'action.open': 'Open project',
       'filter.all': 'All',
       'filter.other': 'Other',
+      'similar.title': 'Similar plugins',
+      'similar.count': '{count} plugins, sorted by stars',
+      'similar.clear': 'Clear filter',
       'filter.search': 'Search name, description or topics…',
       'sort.label': 'Sort',
       'sort.catalog': 'All (catalog order)',
@@ -376,6 +382,8 @@ window.__ModuleLoader__.load({
 .pd-note a{color:var(--dsw-alias-brand-primary,#2F6FED);text-decoration:none}
 .pd-note a:hover{text-decoration:underline}
 @media (max-width:860px){.pd-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.pd-scroll{padding:14px 12px 20px}.pd-hide-narrow{display:none}}
+.pd-similar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--dsw-alias-border-l1,#e4e8f0);border-left:3px solid var(--dsw-alias-brand-primary,#2F6FED);background:var(--dsw-alias-bg-layer-2,#f7f8fa);border-radius:9px;padding:7px 11px;font-size:12px}
+.pd-similar-title{font-weight:600}
 .pd-tabs{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .pd-tab{border:1px solid transparent;background:transparent;color:var(--dsw-alias-label-secondary,#667085);border-radius:8px;padding:5px 12px;font:inherit;font-size:12.5px;cursor:pointer}
 .pd-tab:hover{background:var(--dsw-alias-bg-layer-2,#f4f6fa)}
@@ -434,7 +442,7 @@ window.__ModuleLoader__.load({
     const CATEGORY_ZH = new Map();
 
     /** Cross-component intent: open the discovery view, optionally pre-filled with a query. */
-    const discoveryRequests = { query: '', listeners: new Set() };
+    const discoveryRequests = { request: null, listeners: new Set() };
 
     /**
      * Resolve the slot translator, falling back to the bundled dictionaries.
@@ -454,11 +462,11 @@ window.__ModuleLoader__.load({
      * Ask the discovery page to open (and optionally search for a phrase).
      * @param {string} query search text
      */
-    function requestDiscovery(query) {
-      discoveryRequests.query = typeof query === 'string' ? query : '';
+    function requestDiscovery(request) {
+      discoveryRequests.request = request;
       for (const listener of discoveryRequests.listeners) {
         try {
-          listener(discoveryRequests.query);
+          listener(request);
         } catch {
           /* a stale listener must not break the overlay */
         }
@@ -577,6 +585,8 @@ window.__ModuleLoader__.load({
       const [page, setPage] = React.useState(1);
       const [view, setView] = React.useState('discover');
       const [showAui, setShowAui] = React.useState(false);
+      const [similar, setSimilar] = React.useState(null);
+      const [similarNote, setSimilarNote] = React.useState(null);
       const [installing, setInstalling] = React.useState(() => new Set());
       const [installedFull, setInstalledFull] = React.useState(() => new Set());
       const [installedBundles, setInstalledBundles] = React.useState([]);
@@ -595,16 +605,30 @@ window.__ModuleLoader__.load({
         if (toastTimer.current !== null) clearTimeout(toastTimer.current);
       }, []);
 
-      // The AUI overlay can ask this page to open with a search phrase.
+      // The AUI overlay can ask this page to open on a search phrase or on a category.
       React.useEffect(() => {
         const applyRequest = (requested) => {
+          const request = typeof requested === 'string' ? { query: requested } : (requested ?? {});
           setView('discover');
-          if (typeof requested === 'string' && requested.trim().length > 0) setQuery(requested.trim());
+          setPage(1);
+          setQuery(typeof request.query === 'string' ? request.query.trim() : '');
+          const wanted = typeof request.category === 'string' ? request.category : '';
+          if (wanted.length > 0) {
+            const zh = request.categoryZh || CATEGORY_ZH.get(wanted) || wanted;
+            setSimilarNote({ key: wanted, zh });
+            setCategory('all');
+            setSimilar({ key: wanted, zh });
+            setSort('stars');
+          } else {
+            setSimilar(null);
+            setSimilarNote(null);
+            setCategory('all');
+          }
         };
         discoveryRequests.listeners.add(applyRequest);
-        if (discoveryRequests.query.length > 0) {
-          applyRequest(discoveryRequests.query);
-          discoveryRequests.query = '';
+        if (discoveryRequests.request !== null) {
+          applyRequest(discoveryRequests.request);
+          discoveryRequests.request = null;
         }
         return () => {
           discoveryRequests.listeners.delete(applyRequest);
@@ -828,7 +852,9 @@ window.__ModuleLoader__.load({
       const filtered = React.useMemo(() => {
         const needle = query.trim().toLowerCase();
         let list = rows;
-        if (category !== 'all') {
+        if (similar !== null) {
+          list = list.filter((row) => row.category === similar.key);
+        } else if (category !== 'all') {
           list = category === 'other'
             ? list.filter((row) => otherCategoryKeys.has(row.category))
             : list.filter((row) => row.category === category);
@@ -844,7 +870,7 @@ window.__ModuleLoader__.load({
         if (sort === 'stars') return list.slice().sort((a, b) => b.stars - a.stars || a.name.localeCompare(b.name));
         if (sort === 'updated') return list.slice().sort((a, b) => (b.updated || '').localeCompare(a.updated || '') || b.stars - a.stars);
         return list.slice().sort((a, b) => (categoryRank.get(a.category) ?? 99) - (categoryRank.get(b.category) ?? 99) || b.stars - a.stars);
-      }, [rows, query, category, sort, otherCategoryKeys, categoryRank]);
+      }, [rows, query, category, sort, otherCategoryKeys, categoryRank, similar]);
 
       const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
       const current = Math.min(page, pages);
@@ -976,17 +1002,22 @@ window.__ModuleLoader__.load({
           : null,
       );
 
+      const chooseCategory = (value) => {
+        setSimilar(null);
+        setSimilarNote(null);
+        setCategory(value);
+      };
       const chips = [
         h(
           'button',
-          { key: 'all', className: `pd-chip${category === 'all' ? ' on' : ''}`, onClick: () => setCategory('all') },
+          { key: 'all', className: `pd-chip${category === 'all' && similar === null ? ' on' : ''}`, onClick: () => chooseCategory('all') },
           t('filter.all'),
           h('small', null, total.toLocaleString('zh-CN')),
         ),
         ...headCategories.map((item) =>
           h(
             'button',
-            { key: item.key, className: `pd-chip${category === item.key ? ' on' : ''}`, onClick: () => setCategory(item.key), title: item.en },
+            { key: item.key, className: `pd-chip${(similar !== null ? similar.key === item.key : category === item.key) ? ' on' : ''}`, onClick: () => chooseCategory(item.key), title: item.en },
             item.zh,
             h('small', null, item.count.toLocaleString('zh-CN')),
           ),
@@ -994,12 +1025,31 @@ window.__ModuleLoader__.load({
         otherCount > 0
           ? h(
               'button',
-              { key: 'other', className: `pd-chip${category === 'other' ? ' on' : ''}`, onClick: () => setCategory('other'), title: categories.slice(HEAD_CHIPS).map((item) => item.zh).join(' / ') },
+              { key: 'other', className: `pd-chip${category === 'other' && similar === null ? ' on' : ''}`, onClick: () => chooseCategory('other'), title: categories.slice(HEAD_CHIPS).map((item) => item.zh).join(' / ') },
               t('filter.other'),
               h('small', null, otherCount.toLocaleString('zh-CN')),
             )
           : null,
+        similar !== null && !headCategories.some((item) => item.key === similar.key)
+          ? h(
+              'button',
+              { key: 'similar', className: 'pd-chip on', onClick: () => chooseCategory('all') },
+              similar.zh,
+              h('small', null, filtered.length.toLocaleString('zh-CN')),
+            )
+          : null,
       ];
+
+      const similarBanner = similarNote !== null
+        ? h(
+            'div',
+            { className: 'pd-similar' },
+            h('span', { className: 'pd-similar-title' }, t('similar.title')),
+            h('b', null, similarNote.zh),
+            h('span', { className: 'pd-muted' }, t('similar.count', { count: filtered.length.toLocaleString('zh-CN') })),
+            h('button', { className: 'pd-btn', onClick: () => chooseCategory('all') }, t('similar.clear')),
+          )
+        : null;
 
       const toolbar = h(
         'div',
@@ -1244,6 +1294,7 @@ window.__ModuleLoader__.load({
             : null,
           summaryCard,
           h('div', { className: 'pd-chips' }, chips),
+          similarBanner,
           toolbar,
           renderInstallStatus(),
           table,
@@ -1628,7 +1679,7 @@ window.__ModuleLoader__.load({
           } catch {
             /* polling must stay quiet */
           }
-          if (alive) timer = setTimeout(poll, 4000);
+          if (alive) timer = setTimeout(poll, 1000);
         };
         void poll();
         return () => {
@@ -1710,7 +1761,9 @@ window.__ModuleLoader__.load({
             ? h('button', {
                 className: 'pd-btn',
                 onClick: () => {
-                  openDiscovery(plugin.name);
+                  openDiscovery(plugin.category
+                    ? { category: plugin.category, categoryZh: plugin.categoryZh }
+                    : { query: plugin.name });
                   void dismiss({});
                 },
               }, t('aui.card.open'))
@@ -1770,8 +1823,8 @@ window.__ModuleLoader__.load({
         order: 50,
         locale: NS,
         inject: () => ({
-          openDiscovery: (query) => {
-            requestDiscovery(typeof query === 'string' ? query : '');
+          openDiscovery: (request) => {
+            requestDiscovery(request);
             try {
               ctx.layout.selectPanel(PANEL_ID);
             } catch (error) {
@@ -1782,6 +1835,6 @@ window.__ModuleLoader__.load({
       }, AuiOverlay)), 'plugin-discovery: AUI overlay');
     }
 
-    return { inject: ['slots', 'locale', 'layout'], apply, DiscoveryPage, DiscoveryIcon, ManagementView, AuiOverlay, AuiSettingsDialog };
+    return { inject: ['slots', 'locale', 'layout'], apply, DiscoveryPage, DiscoveryIcon, ManagementView, AuiOverlay, AuiSettingsDialog, requestDiscovery };
   },
 });

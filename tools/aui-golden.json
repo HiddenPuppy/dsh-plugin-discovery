@@ -13,7 +13,8 @@
         "alchaincyf/huashu-excel",
         "zirscard/dsh-office-audit",
         "po-et/dsh-sheet-diff",
-        "Melody-max114/dsh-excel-panel"
+        "Melody-max114/dsh-excel-panel",
+        "copylee711/dsh-office"
       ],
       "note": "Excel 数据整理 + 公式校验"
     },
@@ -124,7 +125,8 @@
       "expect": [
         "omdsh-dev/dsh-lark",
         "xmanrui/dsh-im",
-        "wenbin-wb/dsh-bridge"
+        "wenbin-wb/dsh-bridge",
+        "amlyczz/dsh-lark-link"
       ],
       "note": "飞书/IM 接入"
     },
@@ -168,7 +170,8 @@
         "qishuilalala/dsh-voice-mode",
         "WizisCool/dsh-ears",
         "PerryLink/dsh-talk",
-        "3274375092/dsh-voice"
+        "3274375092/dsh-voice",
+        "chentao4183/dsh-voice-suite"
       ],
       "note": "语音输入"
     },
@@ -228,7 +231,8 @@
       "expect": [
         "feiyang-dev/dsh-usage-plugin",
         "kenz1117/dsh-ui-usage-billing",
-        "Han-1413141/dsh-cost-meter"
+        "Han-1413141/dsh-cost-meter",
+        "newbieYi/dsh-cost-stats"
       ],
       "note": "用量与花费"
     },
@@ -256,7 +260,8 @@
         "pawpress/office-ppt",
         "yunfeizhu/dsh-pptx-editor",
         "ZhdanovDmitriy/dsh-pptx-builder",
-        "rong-coder/dsh-office-tool"
+        "rong-coder/dsh-office-tool",
+        "kw78/dsh-office-tools"
       ],
       "note": "PPT 生成"
     },
@@ -269,7 +274,8 @@
         "ysr666/dsh-vision-router",
         "Anionex/dsh-vision-toolkit",
         "xiaoyuink/dsh-image-vision",
-        "vuvanmai936-dot/dsh-ocr-bridge"
+        "vuvanmai936-dot/dsh-ocr-bridge",
+        "xby-skill/xby-ocr-pro"
       ],
       "note": "OCR/图片识别"
     },

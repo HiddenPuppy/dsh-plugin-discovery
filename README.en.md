@@ -2,15 +2,15 @@
 
 [中文](README.md) | [**English**](README.en.md)
 
-## Latest v1.5.0 (2026-11-06)
+## Latest v1.6.0 (2026-11-07)
 
-[Release notes](https://github.com/HiddenPuppy/dsh-plugin-discovery/releases/tag/v1.5.0) · What changed:
+[Release notes](https://github.com/HiddenPuppy/dsh-plugin-discovery/releases/tag/v1.6.0) · Three things changed:
 
-- **AUI now asks the model to stay quiet**: local recall proposes candidates, then the current DSH default model judges whether this message really needs one. Only a worthwhile, confident match floats a card in the bottom-right corner — no more keyword match pushing random plugins.
-- **Quiet-by-default frequency control**: 240 s cooldown, at most 4 suggestions per hour and 2 per session; if the model is unavailable or unsure, nothing is shown (no keyword fallback).
-- **Golden-set evaluation**: 36 realistic intents (26 positive, 10 negative, including the xiaohongshu-video regression), currently **94.4%** accuracy and **0/10** false positives. `tools/aui-golden.json`, the eval script and the full report ship in the repo.
-- Plugin management, install-failure handling and the ✓ marker are unchanged.
-- The catalog currently lists **24,075** plugins, **639** of which support one-click install from npm
+- **Faster**: from sending a message to seeing the suggestion card typically takes **2–3 s**, and “Browse similar plugins” opens instantly
+- **More accurate**: on the 36-case golden set, **25/26 needs matched and 0/10 everyday chats triggered a card** (97.2% accuracy)
+- **“Browse similar plugins” really means the category now**: it opens the plugin's category sorted by stars instead of searching the plugin name, clears the search box and highlights the category chip
+- Also added a plain-language GUI vs AUI explainer (below)
+- The catalog currently lists **24,505** plugins (2026-11-06 snapshot), **639** of which support one-click install from npm
 
 > A **Plugin Discovery** page under the DSH sidebar (below *Automations*): the complete GitHub-hosted DSH plugin marketplace, with 24k+ plugins, a one-sentence Chinese description for every project, GitHub README links and one-click installation.
 
@@ -19,6 +19,13 @@
 The status card after an install (version, source and where to find it):
 
 ![Install status card](docs/install.png)
+
+## GUI vs AUI: two ways to browse the marketplace
+
+- **GUI (graphical user interface)**: you open the Plugin Discovery page yourself, browse categories, search keywords, read descriptions and press Install when something looks right. Like walking the supermarket aisle yourself.
+- **AUI (an interface for your agent)**: you do nothing special — just talk about what you need. DSH quietly decides whether one plugin would really help, and only then hands you a small card in the bottom-right corner. Like a shop assistant who hands you the right thing after overhearing what you are looking for.
+
+Either way, **installing still requires your click**, and AUI can be switched off in **⚙ AUI** whenever you want peace and quiet.
 
 ## What it does
 
@@ -32,37 +39,31 @@ The status card after an install (version, source and where to find it):
 - **One-click install**: every row has an **Install** button. It asks the DSH plugin manager to add that plugin to this profile, preferring the catalog's npm install target (639 plugins have one) and falling back to the GitHub repository. While it runs the page shows progress; when it finishes an inline status card says **whether it worked**, the installed version and **roughly where to find it** (sidebar / settings / agent tools / slash commands / notifications …), plus how to fix common failures (build scripts blocked, network unreachable, already installed, not a bundle).
 - **Installed markers**: plugins already present in this profile show **✓ Installed** instead of the install button.
 - **Failures are actionable**: blocked build scripts get an **Allow and retry** button (writes `allowBuilds` into this profile's `pnpm-workspace.yaml`); when the GitHub source is unusable but the same project publishes an npm package, the card offers **Install from npm instead**, which needs no build scripts.
-- **AUI — proactive discovery**: local recall proposes candidates, the model silently judges whether the message really needs one, and only a confident match floats a card in the bottom-right corner; nothing installs before you confirm.
+- **AUI — plugin discovery while you chat**: a quick local shortlist, then the model quietly judges whether a suggestion is worth it; only then does a small card appear in the bottom-right corner, and nothing installs before you confirm. “Browse similar plugins” opens the plugin's category.
 - **Plugin management**: a **Manage** tab integrates official and installed third-party plugin enable/disable and uninstall, with list and grid views.
 
-## AUI (agent-facing UI)
+## AUI: plugin discovery while you chat
 
 ![AUI suggestion card](docs/aui.png)
 
-Describe a need in conversation (for example “tidy up this sales Excel sheet and check the formulas”) and AUI decides whether to disturb you in two steps:
+Describe a concrete need in conversation (for example “tidy up this sales ledger and check the formulas”), and AUI first shortlists a dozen candidates from the 24k catalog, then asks the model to read them:
 
-1. **Local recall** (no network, tens of ms): up to 15 candidates from the 24k-entry catalog, minus installed and previously ignored plugins
-2. **Model judgement** (current DSH default model, temperature 0, ~1–2 s): understand the actual task and decide whether a candidate really helps. If not, it stays silent rather than forcing a match
+- if one plugin genuinely helps, a bottom-right card appears with the reason and a confidence level
+- for chit-chat, coding questions, concept explanations, or low confidence, nothing appears and the conversation continues
 
-Only “worth suggesting + confidence ≥ 0.6” floats a light card in the **bottom-right corner**:
+The card offers **Install**, **Browse similar plugins**, **Ignore** and **Don't suggest again**.
 
-- **Never interrupts the transcript** — the card lives in the frame overlay
-- **You confirm** — Install only runs when you press it; Ignore / Don't suggest again are one click away
-- **Quiet by default** — 240 s cooldown, at most 4 per hour and 2 per session; if the model is unavailable or unsure, nothing is shown
-- **Configurable** — **⚙ AUI** holds the switch, minimum confidence, cooldown, hourly and per-session caps, plus a “try it” preview
-- **Related results** — “Browse similar” opens Plugin Discovery pre-filled with the plugin name
+“Browse similar plugins” opens Plugin Discovery on the **same category** (no more exact-name search), sorted by stars, with the search box cleared and the category chip highlighted; press “Clear filter” to go back.
 
-### Golden set and evaluation
+![Similar plugins](docs/similar.png)
 
-`tools/aui-golden.json` holds **26 realistic user intents and 10 negatives that must stay quiet**, derived from the curated catalog scenarios, DSH community discussions, and a real mis-suggestion (`xiaohongshu video` once matched a video-frame vision plugin). `tools/aui-eval.py` feeds the golden set to the live `/aui/eval` endpoint:
+- **Speed**: typically 2–3 s from message to card; “Browse similar plugins” is instant
+- **Quiet by default**: at most one suggestion every 4 minutes, 4 per hour and 2 per session; if the model is unsure, nothing is shown and there is no keyword fallback
+- **Configurable**: **⚙ AUI** holds the switch, minimum confidence, cooldown and caps, plus a “try it” preview
 
-| Threshold | Hits | Wrong | Missed | False positives | Accuracy |
-| ---: | ---: | ---: | ---: | ---: | ---: |
-| 0.5 | 24/26 | 1 | 1 | 0/10 | 94.4% |
-| 0.6 (default) | 24/26 | 1 | 1 | 0/10 | 94.4% |
-| 0.7 | 22/26 | 0 | 4 | 0/10 | 88.9% |
+### How well does it work?
 
-See `tools/aui-eval-report.md` for the per-case table. The only clearly borderline case is Excel formula auditing, where the judge was right but stayed at 0.58 confidence; lower the minimum confidence to 0.5 if you prefer coverage.
+The repo ships a 36-case golden set: 26 real needs and 10 everyday chats that must stay quiet (including the xiaohongshu-video mis-suggestion from earlier). Current result: **25/26 needs matched, all 10 everyday chats stayed quiet (0 false positives), 97.2% accuracy**. Full report: `tools/aui-eval-report.md`; reproduce with `tools/aui-eval.py`.
 
 ## Plugin management
 
@@ -162,6 +163,7 @@ MIT
 
 ## Changelog
 
+- **1.6.0** — AUI is faster and more accurate: “Browse similar plugins” now opens the real category (no exact-name search), polling drops from 4 s to 1 s, and the judge is more robust; on the 36-case golden set, 25/26 needs matched with 0/10 false positives (97.2%). README gains a plain-language GUI vs AUI explainer and a similar-plugins screenshot.
 - **1.5.0** — AUI moves from keyword matching to “local recall + model judgement”: the model stays silent unless a candidate genuinely helps with enough confidence; quiet defaults are 240 s cooldown, 4 per hour and 2 per session. Adds a 36-case golden set with an eval script (94.4% accuracy, 0/10 false positives).
 - **1.4.0** — Adds AUI (proactive, bottom-right plugin suggestions matched locally while you chat, install only after confirmation, configurable) and a **Manage** tab that integrates official and installed third-party plugin enabling, disabling, uninstalling and list/grid views.
 - **1.3.0** — Failed installs are handled in place: the status card offers **Allow and retry** (writes `allowBuilds`) and **Install from npm instead** (when the same repository publishes an npm package), and the ✓ marker is persisted. Fixes the missing build-approval entry on the built-in Plugins page (git source `prepare` scripts have no UI there).

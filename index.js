@@ -1269,7 +1269,7 @@ async function askModel(system, prompt) {
       system,
       messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
       temperature: 0,
-      maxTokens: 800,
+      maxTokens: 700,
       signal: controller.signal,
     })) {
       if (chunk?.type === 'text-delta' && typeof chunk.text === 'string') text += chunk.text;
@@ -1292,7 +1292,7 @@ async function askModel(system, prompt) {
 function buildJudgePrompt(text, candidates) {
   const lines = candidates.map((candidate, index) => {
     const row = candidate.entry.row;
-    const description = String(row[7] || row[8] || '').replace(/\s+/g, ' ').slice(0, 110);
+    const description = String(row[7] || row[8] || '').replace(/\s+/g, ' ').slice(0, 80);
     const install = row[11] === 'npm' ? '可一键安装' : '仅源码安装';
     return `${index + 1}. ${row[1]} | ${candidate.entry.categoryZh || row[6]} | ${row[2]}★ | ${install} | ${description}`;
   });
@@ -1317,14 +1317,24 @@ function parseDecision(raw, candidates) {
   if (typeof raw !== 'string' || raw.length === 0) return null;
   const start = raw.indexOf('{');
   const end = raw.lastIndexOf('}');
-  if (start < 0 || end <= start) return null;
-  let parsed;
-  try {
-    parsed = JSON.parse(raw.slice(start, end + 1));
-  } catch {
-    return null;
+  let parsed = null;
+  if (start >= 0 && end > start) {
+    try {
+      parsed = JSON.parse(raw.slice(start, end + 1));
+    } catch {
+      parsed = null;
+    }
   }
-  if (parsed === null || typeof parsed !== 'object') return null;
+  if (parsed === null || typeof parsed !== 'object') {
+    const suggest = /"suggest"\s*:\s*(true|false)/.exec(raw);
+    if (suggest === null) return null;
+    parsed = {
+      suggest: suggest[1] === 'true',
+      plugin: /"plugin"\s*:\s*"([^"]*)"/.exec(raw)?.[1] ?? null,
+      confidence: Number(/"confidence"\s*:\s*([0-9.]+)/.exec(raw)?.[1] ?? (suggest[1] === 'true' ? 0.6 : 0)),
+      reason: /"reason"\s*:\s*"([^"]*)"/.exec(raw)?.[1] ?? '',
+    };
+  }
   const suggest = parsed.suggest === true;
   const confidence = clampNumber(parsed.confidence, 0, 1, suggest ? 0.6 : 0);
   const rawPlugin = typeof parsed.plugin === 'string' ? parsed.plugin.trim().toLowerCase() : '';
@@ -1746,7 +1756,11 @@ function registerRoutes(ctx) {
           return json({ settings, pending: pendingSuggestion });
         }
         const settings = await loadAuiSettings();
-        return json({ settings, pending: pendingSuggestion });
+        return json({
+          settings,
+          pending: pendingSuggestion,
+          quiet: { inFlight: decisionInFlight, hourly: suggestionTimes.length, sessions: sessionSuggestionCounts.size, lastSuggestionAt },
+        });
       } catch (error) {
         return json({ error: error instanceof Error ? error.message : String(error) }, 500);
       }
