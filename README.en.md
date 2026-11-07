@@ -2,15 +2,14 @@
 
 [中文](README.md) | [**English**](README.en.md)
 
-## Latest v1.7.0 (2026-11-07)
+## Latest v1.8.0 (2026-11-07)
 
-[Release notes](https://github.com/HiddenPuppy/dsh-plugin-discovery/releases/tag/v1.7.0) · What changed:
+[Release notes](https://github.com/HiddenPuppy/dsh-plugin-discovery/releases/tag/v1.8.0) · This release redesigns how plugin usage is presented:
 
-- **New plugin usage tracking**: the Host keeps a local log of plugin usage. The **Manage** tab now shows how often each third-party plugin was used and when it was last used; plugins installed but rarely used are listed separately and can be uninstalled in one click — AUI can find them again when you actually need them.
-- **Official vs third-party**: official plugins are shown for reference only; only removable third-party plugins enter the cleanup list.
-- **Removed “Browse similar plugins”**: the previous version just put the plugin name into the search box, which was not really a “similar” feature. It is offline until a better implementation exists.
-- Note: pure UI plugins (themes, previewers) cannot be measured yet and are labelled “UI plugin (not counted yet)”.
-- The catalog currently lists **24,505** plugins (2026-11-06 snapshot), **639** of which support one-click install from npm
+- **No more a big flat block**: usage data moved behind a **Usage log** button in the Manage toolbar, so the plugin list stays the main content
+- **Inline usage**: a third-party tool plugin shows one subtle line in its own card (“3 uses · 2 days ago”)
+- **Only when needed**: a suggestion strip appears above the list only when a plugin is really installed but rarely used, expandable to uninstall
+- **UI plugins stay out of the way**: themes and previewers are not counted and are only mentioned in one line at the bottom of the usage dialog, never mis-flagged as unused
 
 > A **Plugin Discovery** page under the DSH sidebar (below *Automations*): the complete GitHub-hosted DSH plugin marketplace, with 24k+ plugins, a one-sentence Chinese description for every project, GitHub README links and one-click installation.
 
@@ -63,15 +62,25 @@ The repo ships a 36-case golden set: 26 real needs and 10 everyday chats that mu
 
 ## Plugin usage (local log)
 
-![Plugin usage](docs/usage.png)
+![Manage tab](docs/usage.png)
 
-The top of the **Manage** tab shows local plugin usage:
+Usage no longer takes a large block of the page; it has three layers:
+
+1. **Entry**: the **Usage log** button in the Manage toolbar
+2. **Inline**: a third-party tool plugin shows one subtle line in its card (uses / last used); UI plugins show nothing
+3. **Reminder**: a strip appears above the list only when a plugin is genuinely installed but rarely used, expandable to uninstall
+
+Click **Usage log** for the details:
+
+![Usage log](docs/usage-modal.png)
+
+The log records:
 
 - **What is recorded**: every tool call (name, time, owning plugin), installs/removals, and which plugins AUI suggested
 - **How ownership is resolved**: the Host scans installed plugin packages for declared tool names and maps them back to plugins; official packages are read from the local installation for reference
-- **Cleanup reminder**: a third-party plugin enters the “installed but rarely used” list when it has been seen for 7 days, has not been used in 7 days and has at most 2 uses; uninstall it with one click, and AUI can suggest it again when relevant
+- **Cleanup reminder**: a third-party plugin surfaces as “installed but rarely used” when it has been seen for 7 days, has not been used in 7 days and has at most 2 uses; uninstall it with one click, and AUI can suggest it again when relevant
 - **Local only**: the log lives at `~/.dsh/cache/plugin-discovery/usage.jsonl` and is never uploaded
-- **Limit**: pure UI plugins (themes, previewers) cannot be measured yet and are labelled “UI plugin (not counted yet)” instead of being mistaken for unused
+- **UI plugins**: not counted and never enter the cleanup list (one line at the bottom of the dialog, no dedicated block)
 
 ## Plugin management
 
@@ -172,6 +181,7 @@ MIT
 
 ## Changelog
 
+- **1.8.0** — Redesigns the usage presentation: a toolbar entry, one inline line per tool plugin, and a reminder strip only when something is actually idle; UI plugins no longer take up space. Data and statistics are unchanged.
 - **1.7.0** — Adds local plugin usage tracking: tool calls, installs/removals and AUI suggestions are logged; the Manage tab shows uses and last use per third-party plugin and lists “installed but rarely used” plugins for one-click cleanup, with AUI able to re-find them later. Removes the misleading “Browse similar plugins” action.
 - **1.6.0** — AUI is faster and more accurate: “Browse similar plugins” now opens the real category (no exact-name search), polling drops from 4 s to 1 s, and the judge is more robust; on the 36-case golden set, 25/26 needs matched with 0/10 false positives (97.2%). README gains a plain-language GUI vs AUI explainer and a similar-plugins screenshot.
 - **1.5.0** — AUI moves from keyword matching to “local recall + model judgement”: the model stays silent unless a candidate genuinely helps with enough confidence; quiet defaults are 240 s cooldown, 4 per hour and 2 per session. Adds a 36-case golden set with an eval script (94.4% accuracy, 0/10 false positives).

@@ -168,6 +168,14 @@ window.__ModuleLoader__.load({
       'usage.empty': '当前没有可统计的第三方插件',
       'usage.uninstallHint': '移除只卸载插件本身，不会删除你的会话或文件。',
       'usage.officialLine': '官方插件使用：{items}',
+      'usage.open': '使用记录',
+      'usage.dialogTitle': '插件使用记录',
+      'usage.idleBanner': '{count} 个插件装了但很少用',
+      'usage.idleShow': '看看',
+      'usage.idleHide': '收起',
+      'usage.idleTag': '很少使用',
+      'usage.officialTitle': '官方插件使用',
+      'usage.note': '界面型插件（主题、预览器）不统计使用次数，也不会进入清理提醒。',
       'time.justNow': '刚刚',
       'time.minutesAgo': '{count} 分钟前',
       'time.hoursAgo': '{count} 小时前',
@@ -320,6 +328,14 @@ window.__ModuleLoader__.load({
       'usage.empty': 'No measurable third-party plugins yet',
       'usage.uninstallHint': 'Removing only uninstalls the plugin; your sessions and files stay.',
       'usage.officialLine': 'Official plugin usage: {items}',
+      'usage.open': 'Usage log',
+      'usage.dialogTitle': 'Plugin usage log',
+      'usage.idleBanner': '{count} plugin(s) installed but rarely used',
+      'usage.idleShow': 'Show',
+      'usage.idleHide': 'Hide',
+      'usage.idleTag': 'Rarely used',
+      'usage.officialTitle': 'Official plugin usage',
+      'usage.note': 'UI plugins (themes, previewers) are not counted and never enter the cleanup list.',
       'time.justNow': 'just now',
       'time.minutesAgo': '{count} min ago',
       'time.hoursAgo': '{count} h ago',
@@ -427,19 +443,20 @@ window.__ModuleLoader__.load({
 .pd-seg{display:flex;border:1px solid var(--dsw-alias-border-l1,#e4e8f0);border-radius:8px;overflow:hidden}
 .pd-seg button{border:none;background:transparent;color:var(--dsw-alias-label-secondary,#667085);padding:5px 12px;font:inherit;font-size:12px;cursor:pointer}
 .pd-seg button.on{background:var(--dsw-alias-brand-primary,#2F6FED);color:#fff}
-.pd-usage{border:1px solid var(--dsw-alias-border-l1,#e4e8f0);border-radius:12px;padding:12px 14px;background:var(--dsw-alias-bg-layer-1,#fff);margin-top:12px;display:flex;flex-direction:column;gap:8px}
-.pd-usage h3{margin:0;font-size:13px;font-weight:600}
-.pd-usage .hint{margin:0;font-size:11.5px;color:var(--dsw-alias-label-secondary,#667085)}
-.pd-usage-idle-title{font-weight:600;color:var(--dsw-alias-state-warn-primary,#f79009);font-size:12.5px}
+.pd-linkbtn{border:none;background:transparent;color:var(--dsw-alias-label-secondary,#667085);font:inherit;font-size:12px;cursor:pointer;padding:4px 8px;border-radius:6px}
+.pd-linkbtn:hover{background:var(--dsw-alias-bg-layer-2,#f4f6fa);color:var(--dsw-alias-label-primary,#101828)}
+.pd-idle-banner{border:1px solid color-mix(in srgb,var(--dsw-alias-state-warn-primary,#f79009) 32%,transparent);border-left:3px solid var(--dsw-alias-state-warn-primary,#f79009);background:color-mix(in srgb,var(--dsw-alias-state-warn-primary,#f79009) 5%,transparent);border-radius:10px;padding:8px 12px;margin:6px 0 2px;display:flex;flex-direction:column;gap:6px}
+.pd-idle-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+.pd-idle-head b{font-size:12.5px}
+.pd-idle-list{display:flex;flex-direction:column;gap:6px;border-top:1px dashed var(--dsw-alias-border-l1,#e4e8f0);padding-top:8px}
+.pd-idle-row{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.pd-idle-main{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px}
+.pd-usage-inline{font-size:11px;color:var(--dsw-alias-label-secondary,#667085);margin-top:2px}
 .pd-usage-list{display:flex;flex-direction:column;gap:6px}
-.pd-usage-row{display:flex;gap:10px;align-items:center;justify-content:space-between;border:1px solid var(--dsw-alias-border-l1,#e4e8f0);border-radius:8px;padding:7px 10px}
-.pd-usage-row.warn{border-color:color-mix(in srgb,var(--dsw-alias-state-warn-primary,#f79009) 45%,transparent)}
-.pd-usage-main{min-width:0;display:flex;flex-direction:column;gap:2px}
-.pd-usage-title{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-weight:600;font-size:12.5px}
-.pd-usage-meta{font-size:11.5px;color:var(--dsw-alias-label-secondary,#667085)}
-.pd-usage-actions{display:flex;gap:6px;align-items:center;flex:0 0 auto}
 .pd-usage-activity b{font-size:12px}
 .pd-usage-activity ul{margin:4px 0 0;padding-left:16px;font-size:11.5px;color:var(--dsw-alias-label-secondary,#667085)}
+.pd-modal-line{display:flex;flex-direction:column;gap:3px;margin-top:12px;font-size:12.5px}
+.pd-usage-modal{width:560px}
 .pd-manage-section{margin-top:14px}
 .pd-manage-section h3{margin:0 0 4px;font-size:13px;font-weight:600;display:flex;gap:8px;align-items:center}
 .pd-manage-section p.hint{margin:0 0 8px;font-size:11.5px;color:var(--dsw-alias-label-secondary,#667085)}
@@ -1312,6 +1329,8 @@ window.__ModuleLoader__.load({
       const t = createTranslator(props);
       const [bundles, setBundles] = React.useState(null);
       const [usage, setUsage] = React.useState(null);
+      const [showUsage, setShowUsage] = React.useState(false);
+      const [showIdle, setShowIdle] = React.useState(false);
       const [error, setError] = React.useState(null);
       const [loading, setLoading] = React.useState(true);
       const [mode, setMode] = React.useState('list');
@@ -1419,6 +1438,7 @@ window.__ModuleLoader__.load({
             ),
             h('div', { className: 'pd-bundle-name' }, `${bundle.name}${bundle.version ? ` @ ${bundle.version}` : ''}`),
             description ? h('div', { className: 'pd-bundle-desc' }, description) : null,
+            thirdPartyUsageLine(bundle),
             Array.isArray(bundle.rows) && bundle.rows.length > 0 ? h('div', { className: 'pd-note' }, t('manage.rows', { count: bundle.rows.length })) : null,
           ),
           h(
@@ -1443,74 +1463,97 @@ window.__ModuleLoader__.load({
       };
 
       const allUsagePlugins = Array.isArray(usage?.plugins) ? usage.plugins : [];
-      const usagePlugins = allUsagePlugins.filter((plugin) => plugin.official !== true);
+      const usageById = new Map(allUsagePlugins.map((plugin) => [plugin.name, plugin]));
       const officialUsage = allUsagePlugins.filter((plugin) => plugin.official === true && plugin.uses > 0).sort((left, right) => right.uses - left.uses).slice(0, 6);
       const usageIdle = Array.isArray(usage?.idle) ? usage.idle : [];
       const monitoredDays = usage?.startedAt ? Math.max(1, Math.ceil((Date.now() - Date.parse(usage.startedAt)) / 86400000)) : 0;
       const idleDays = usage?.rules?.idleDays ?? 7;
       const maxIdleUses = usage?.rules?.maxUses ?? 2;
-      const usageStatusLabel = (status) =>
-        status === 'tools' ? t('usage.status.tools') : status === 'ui' ? t('usage.status.ui') : t('usage.status.unknown');
-      const renderUsageRow = (plugin) => h(
+
+      const usageTextFor = (bundle) => {
+        const record = usageById.get(bundle.name);
+        if (record === undefined || record.status !== 'tools') return null;
+        if (record.idle) return t('usage.idleTag');
+        if (record.uses <= 0) return null;
+        return `${t('usage.uses', { count: record.uses })} · ${relativeTime(record.lastUsed, t)}`;
+      };
+      const thirdPartyUsageLine = (bundle) => {
+        const text = bundle.official !== true ? usageTextFor(bundle) : null;
+        return text === null ? null : h('div', { className: 'pd-usage-inline' }, text);
+      };
+
+      const renderIdleRow = (plugin) => h(
         'div',
-        { className: `pd-usage-row${plugin.idle ? ' warn' : ''}`, key: plugin.name },
+        { className: 'pd-idle-row', key: plugin.name },
         h(
           'div',
-          { className: 'pd-usage-main' },
-          h(
-            'div',
-            { className: 'pd-usage-title' },
-            h('span', null, plugin.title || plugin.name),
-            h('span', { className: 'pd-tag' }, usageStatusLabel(plugin.status)),
-            plugin.idle ? h('span', { className: 'pd-tag warn' }, t('usage.idleTitle')) : null,
-          ),
-          h('div', { className: 'pd-usage-meta' }, `${t('usage.uses', { count: plugin.uses })} · ${relativeTime(plugin.lastUsed, t)}`),
+          { className: 'pd-idle-main' },
+          h('b', null, plugin.title || plugin.name),
+          h('span', { className: 'pd-muted' }, `${t('usage.uses', { count: plugin.uses })} · ${relativeTime(plugin.lastUsed, t)}`),
         ),
-        h(
-          'div',
-          { className: 'pd-usage-actions' },
-          plugin.removable
-            ? confirming === plugin.name
-              ? h('button', { className: 'pd-btn danger', disabled: busy.length > 0, onClick: () => void remove(plugin.name) }, busy === plugin.name ? t('manage.removing') : t('manage.confirmRemove'))
-              : h('button', { className: 'pd-btn', disabled: busy.length > 0, onClick: () => setConfirming(plugin.name) }, t('manage.remove'))
-            : null,
-          confirming === plugin.name ? h('button', { className: 'pd-btn', onClick: () => setConfirming('') }, t('manage.cancel')) : null,
-        ),
+        plugin.removable
+          ? confirming === plugin.name
+            ? h('button', { className: 'pd-btn danger', disabled: busy.length > 0, onClick: () => void remove(plugin.name) }, busy === plugin.name ? t('manage.removing') : t('manage.confirmRemove'))
+            : h('button', { className: 'pd-btn', disabled: busy.length > 0, onClick: () => setConfirming(plugin.name) }, t('manage.remove'))
+          : null,
+        confirming === plugin.name ? h('button', { className: 'pd-btn', onClick: () => setConfirming('') }, t('manage.cancel')) : null,
       );
-      const usageSection = usage === null
-        ? null
-        : h(
-            'section',
-            { className: 'pd-usage' },
-            h('h3', null, t('usage.title')),
-            h('p', { className: 'hint' }, t('usage.summary', { days: monitoredDays, records: usage.records ?? 0, plugins: usagePlugins.length })),
-            officialUsage.length > 0
-              ? h('div', { className: 'pd-note' }, t('usage.officialLine', { items: officialUsage.map((plugin) => `${plugin.title} ${t('usage.uses', { count: plugin.uses })}`).join(' · ') }))
-              : null,
-            usageIdle.length > 0
-              ? h(
-                  React.Fragment,
-                  null,
-                  h('div', { className: 'pd-usage-idle-title' }, t('usage.idleTitle')),
-                  h('p', { className: 'hint' }, t('usage.idleHint')),
-                  h('div', { className: 'pd-usage-list' }, usageIdle.map(renderUsageRow)),
-                )
-              : h('div', { className: 'pd-note' }, t('usage.idleEmpty')),
-            h('p', { className: 'pd-note' }, t('usage.rule', { days: idleDays, maxUses: maxIdleUses })),
-            usagePlugins.length === 0
-              ? h('div', { className: 'pd-note' }, t('usage.empty'))
-              : h('div', { className: 'pd-usage-list' }, usagePlugins.map(renderUsageRow)),
+
+      const idleBanner = usageIdle.length > 0
+        ? h(
+            'div',
+            { className: 'pd-idle-banner' },
             h(
               'div',
-              { className: 'pd-usage-activity' },
-              h('b', null, t('usage.recent')),
-              Array.isArray(usage.recent) && usage.recent.length > 0
-                ? h('ul', null, usage.recent.slice(0, 8).map((record, index) => h('li', { key: `${record.at}-${index}` }, `${String(record.at ?? '').slice(11, 19)} · ${record.kind} · ${record.name}`)))
-                : h('div', { className: 'pd-note' }, t('usage.noActivity')),
+              { className: 'pd-idle-head' },
+              h('b', null, t('usage.idleBanner', { count: usageIdle.length })),
+              h('span', { className: 'pd-muted' }, t('usage.idleHint')),
+              h('button', { className: 'pd-btn', onClick: () => setShowIdle((value) => !value) }, showIdle ? t('usage.idleHide') : t('usage.idleShow')),
             ),
-            h('p', { className: 'pd-note' }, t('usage.uninstallHint')),
-          );
+            showIdle ? h('div', { className: 'pd-idle-list' }, usageIdle.map(renderIdleRow)) : null,
+          )
+        : null;
 
+      const usageDialog = showUsage
+        ? h(
+            'div',
+            {
+              className: 'pd-modal-mask',
+              onClick: (event) => {
+                if (event.target === event.currentTarget) setShowUsage(false);
+              },
+            },
+            h(
+              'div',
+              { className: 'pd-modal pd-usage-modal', role: 'dialog', 'aria-modal': true },
+              h('h2', null, t('usage.dialogTitle')),
+              usage === null
+                ? h('div', { className: 'pd-note' }, t('loading'))
+                : h(
+                    React.Fragment,
+                    null,
+                    h('p', { className: 'desc' }, t('usage.summary', { days: monitoredDays, records: usage.records ?? 0, plugins: allUsagePlugins.filter((plugin) => plugin.official !== true).length })),
+                    officialUsage.length > 0
+                      ? h('div', { className: 'pd-modal-line' }, h('b', null, t('usage.officialTitle')), h('div', { className: 'pd-note' }, officialUsage.map((plugin) => `${plugin.title} · ${t('usage.uses', { count: plugin.uses })}`).join(' · ')))
+                      : null,
+                    usageIdle.length > 0
+                      ? h('div', { className: 'pd-modal-line' }, h('b', null, t('usage.idleTitle')), h('div', { className: 'pd-usage-list' }, usageIdle.map(renderIdleRow)))
+                      : null,
+                    h('p', { className: 'pd-note' }, t('usage.rule', { days: idleDays, maxUses: maxIdleUses })),
+                    h(
+                      'div',
+                      { className: 'pd-usage-activity' },
+                      h('b', null, t('usage.recent')),
+                      Array.isArray(usage.recent) && usage.recent.length > 0
+                        ? h('ul', null, usage.recent.slice(0, 12).map((record, index) => h('li', { key: `${record.at}-${index}` }, `${String(record.at ?? '').slice(11, 19)} · ${record.kind} · ${record.name}`)))
+                        : h('div', { className: 'pd-note' }, t('usage.noActivity')),
+                    ),
+                    h('p', { className: 'pd-note' }, t('usage.note')),
+                  ),
+              h('div', { className: 'pd-modal-actions' }, h('button', { className: 'pd-btn primary', onClick: () => setShowUsage(false) }, t('aui.close'))),
+            ),
+          )
+        : null;
       return h(
         'div',
         { className: 'pd-manage' },
@@ -1529,12 +1572,12 @@ window.__ModuleLoader__.load({
             h('button', { className: mode === 'list' ? 'on' : '', onClick: () => setMode('list') }, t('manage.list')),
             h('button', { className: mode === 'grid' ? 'on' : '', onClick: () => setMode('grid') }, t('manage.grid')),
           ),
+          h('button', { className: 'pd-linkbtn', onClick: () => setShowUsage(true) }, t('usage.open')),
           h('button', { className: 'pd-btn', onClick: () => void load(), disabled: loading }, t('manage.refresh')),
         ),
         notice ? h('div', { className: 'pd-note', style: { color: 'var(--dsw-alias-state-success-primary,#12B76A)' } }, notice) : null,
         error ? h('div', { className: 'pd-card pd-err', style: { marginTop: 10 } }, t('manage.error', { error })) : null,
         loading && bundles === null ? h('div', { className: 'pd-state' }, h('i', { className: 'pd-spin' }), ' ', t('manage.loading')) : null,
-        usageSection,
         h(
           'section',
           { className: 'pd-manage-section' },
@@ -1548,12 +1591,14 @@ window.__ModuleLoader__.load({
           'section',
           { className: 'pd-manage-section' },
           h('h3', null, t('manage.installed'), h('span', { className: 'pd-muted' }, thirdParty.length)),
+          idleBanner,
           h('p', { className: 'hint' }, t('manage.installedHint')),
           thirdParty.length === 0
             ? h('div', { className: 'pd-note' }, t('manage.empty'))
             : h('div', { className: mode === 'grid' ? 'pd-bundle-grid' : 'pd-bundle-list' }, thirdParty.map(renderBundle)),
         ),
         h('p', { className: 'pd-note', style: { marginTop: 12 } }, t('manage.uninstallHint')),
+        usageDialog,
       );
     }
 
