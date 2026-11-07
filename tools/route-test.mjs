@@ -187,6 +187,13 @@ console.log('aui session cap:', third.suggestion !== null, 'reason:', third.deci
 const fourth = await mod.decideAui('我想把网页抓取下来', { sessionId: 'session-2' });
 console.log('aui session capped second try:', fourth.suggestion === null, 'reason:', fourth.decision?.reason);
 
+// usage log + aggregation
+await mod.recordUsage({ kind: 'tool', name: 'read', sessionId: 'session-1' });
+await mod.recordUsage({ kind: 'tool', name: 'write', sessionId: 'session-1' });
+await mod.recordUsage({ kind: 'suggestion', name: 'demo/dsh-demo' });
+const usage = await (await routes.get('/api/plugin-discovery/usage')(new Request('http://localhost/api/plugin-discovery/usage'))).json();
+console.log('usage records:', usage.records, 'plugins:', usage.plugins?.map((p) => p.name), 'tools:', usage.tools?.map((t) => t.tool));
+
 // failing upstream keeps serving the cached payload
 failArchive = true;
 inspectMode = 'accepted';

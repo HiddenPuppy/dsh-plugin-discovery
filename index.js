@@ -23,7 +23,7 @@
  * index and downloading each volume through the mirror chain (GitHub raw,
  * jsDelivr, GitHub acceleration mirrors).
  */
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -917,6 +917,7 @@ async function runInstallJob(ctx, job) {
         installAliases.set(job.full, job.result.bundle);
         void saveAliases();
       }
+      void recordUsage({ kind: 'install', name: String(job.result.bundle ?? job.full), bundle: job.result.bundle ?? null });
     } else if (job.result) {
       installFailures.set(job.full, { result: job.result, spec: job.spec, via: job.via });
     }
@@ -1464,7 +1465,10 @@ export async function decideAui(text, options = {}) {
       via: row[11] ?? '',
     },
   };
-  if (!force) recordSuggestion(options.sessionId);
+  if (!force) {
+    recordSuggestion(options.sessionId);
+    void recordUsage({ kind: 'suggestion', name: String(suggestion.plugin.full), bundle: null });
+  }
   return { suggestion, decision, candidates: names, latencyMs };
 }
 
@@ -1502,6 +1506,383 @@ async function handleInboxMessage(payload) {
   } catch {
     /* AUI must never disturb the conversation */
   }
+}
+
+// #endregion
+
+// #region plugin usage monitoring
+
+/** Append-only local usage log. */
+const USAGE_FILE = join(CACHE_DIR, 'usage.jsonl');
+/** First-seen bookkeeping for installed bundles. */
+const USAGE_STATE_FILE = join(CACHE_DIR, 'usage-state.json');
+/** Cached tool → bundle attribution map. */
+const USAGE_MAP_FILE = join(CACHE_DIR, 'capabilities.json');
+/** How long one attribution map stays valid. */
+const USAGE_MAP_TTL_MS = 10 * 60 * 1000;
+/** A plugin that has not been used for this many days is a cleanup candidate. */
+const USAGE_IDLE_DAYS = 7;
+/** At most this many uses still counts as "rarely used". */
+const USAGE_IDLE_MAX_USES = 2;
+/** How many log lines one report reads. */
+const USAGE_LOG_LIMIT = 50000;
+
+/** Loaded first-seen state. */
+let usageStateCache = null;
+/** Cached attribution map. */
+let usageMapCache = null;
+/** Serialized log appends. */
+let usageAppendQueue = Promise.resolve();
+
+/**
+ * Read the first-seen state.
+ * @returns {Promise<{ startedAt: string, firstSeen: Record<string, string> }>} state
+ */
+async function loadUsageState() {
+  if (usageStateCache !== null) return usageStateCache;
+  let state = { startedAt: new Date().toISOString(), firstSeen: {} };
+  try {
+    const parsed = JSON.parse(await readFile(USAGE_STATE_FILE, 'utf8'));
+    if (parsed !== null && typeof parsed === 'object') {
+      state = {
+        startedAt: typeof parsed.startedAt === 'string' ? parsed.startedAt : state.startedAt,
+        firstSeen: parsed.firstSeen !== null && typeof parsed.firstSeen === 'object' ? parsed.firstSeen : {},
+      };
+    }
+  } catch {
+    /* first run */
+  }
+  usageStateCache = state;
+  return state;
+}
+
+/**
+ * Persist the first-seen state.
+ * @returns {Promise<void>} completion
+ */
+async function saveUsageState() {
+  try {
+    await mkdir(CACHE_DIR, { recursive: true });
+    await writeFile(USAGE_STATE_FILE, JSON.stringify(usageStateCache), 'utf8');
+  } catch {
+    /* monitoring must never break the conversation */
+  }
+}
+
+/**
+ * Append one usage record.
+ * @param {{ kind: string, name: string, bundle?: string | null, sessionId?: string }} entry record
+ * @returns {Promise<void>} completion
+ */
+export async function recordUsage(entry) {
+  const line = JSON.stringify({ at: new Date().toISOString(), ...entry }) + '\n';
+  usageAppendQueue = usageAppendQueue.then(async () => {
+    try {
+      await mkdir(CACHE_DIR, { recursive: true });
+      await appendFile(USAGE_FILE, line, 'utf8');
+    } catch {
+      /* keep quiet */
+    }
+  });
+  return usageAppendQueue;
+}
+
+/**
+ * Read the tail of the usage log.
+ * @returns {Promise<any[]>} parsed records
+ */
+async function readUsageLog() {
+  try {
+    const text = await readFile(USAGE_FILE, 'utf8');
+    const lines = text.split('\n').filter((line) => line.trim().length > 0);
+    const selected = lines.slice(-USAGE_LOG_LIMIT);
+    const records = [];
+    for (const line of selected) {
+      try {
+        const parsed = JSON.parse(line);
+        if (parsed !== null && typeof parsed === 'object' && typeof parsed.name === 'string') records.push(parsed);
+      } catch {
+        /* skip a torn line */
+      }
+    }
+    return records;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Package roots that can hold installed bundles: the profile first, then the
+ * dsh installation itself (bundled official packages live inside app.asar).
+ * @returns {string[]} candidate node_modules roots
+ */
+function packageRoots() {
+  const roots = [join(PROFILE_DIR, 'node_modules')];
+  const resources = typeof process.resourcesPath === 'string' ? process.resourcesPath : '';
+  if (resources.length > 0) {
+    roots.push(join(resources, 'app.asar', 'dsh', 'node_modules'));
+    roots.push(join(resources, 'dsh', 'node_modules'));
+  }
+  roots.push(join(dirname(process.execPath), '..', 'Resources', 'app.asar', 'dsh', 'node_modules'));
+  return [...new Set(roots)];
+}
+
+/**
+ * Reduce a module specifier to its package name.
+ * @param {string} specifier module specifier
+ * @returns {string} package name
+ */
+function packageNameOf(specifier) {
+  const parts = String(specifier).split('/');
+  if (String(specifier).startsWith('@')) return parts.slice(0, 2).join('/');
+  return parts[0];
+}
+
+/**
+ * Resolve the installed package directory of one package name.
+ * @param {string} name package name
+ * @returns {Promise<string | null>} absolute directory or null
+ */
+async function packageDir(name) {
+  if (typeof name !== 'string' || name.length === 0 || name.includes('..')) return null;
+  for (const root of packageRoots()) {
+    const dir = join(root, name);
+    try {
+      await stat(join(dir, 'package.json'));
+      return dir;
+    } catch {
+      /* try the next root */
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolve the directories that can declare one bundle's code: the bundle package
+ * itself and each row module package it references.
+ * @param {any} bundle bundle metadata
+ * @returns {Promise<string[]>} existing package directories
+ */
+async function bundlePackageDirs(bundle) {
+  /** @type {Set<string>} */
+  const names = new Set();
+  if (typeof bundle.name === 'string') names.add(bundle.name);
+  for (const row of bundle.rows ?? []) {
+    if (typeof row?.moduleName === 'string') names.add(packageNameOf(row.moduleName));
+  }
+  /** @type {string[]} */
+  const dirs = [];
+  for (const name of names) {
+    const dir = await packageDir(name);
+    if (dir !== null) dirs.push(dir);
+  }
+  return dirs;
+}
+
+/**
+ * Collect readable text from one package's host files (bounded).
+ * @param {string} dir package directory
+ * @returns {Promise<string>} concatenated text
+ */
+async function packageText(dir) {
+  const budget = 2 * 1024 * 1024;
+  let used = 0;
+  let out = '';
+  /** @type {string[]} */
+  const queue = [dir];
+  let visited = 0;
+  while (queue.length > 0 && visited < 400 && used < budget) {
+    const current = queue.shift();
+    let entries;
+    try {
+      entries = await readdir(current, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (visited >= 400 || used >= budget) break;
+      const path = join(current, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === 'test' || entry.name === 'docs') continue;
+        queue.push(path);
+        continue;
+      }
+      if (!/\.(?:js|mjs|cjs)$/.test(entry.name)) continue;
+      try {
+        const info = await stat(path);
+        if (info.size > 400 * 1024) continue;
+        const text = await readFile(path, 'utf8');
+        visited += 1;
+        used += text.length;
+        out += `\n${text}`;
+      } catch {
+        /* unreadable file */
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Build (or reuse) the tool → bundle attribution map by scanning installed packages.
+ * @param {boolean} [force] rebuild even when the cache is warm
+ * @returns {Promise<{ at: number, tools: Record<string, string>, bundles: Record<string, { status: string, tools: string[] }> }>} map
+ */
+async function usageCapabilityMap(force = false) {
+  if (!force && usageMapCache !== null && Date.now() - usageMapCache.at < USAGE_MAP_TTL_MS) return usageMapCache;
+  const manager = hostCtx?.get('pluginManager');
+  const toolsService = hostCtx?.get('tools');
+  /** @type {Set<string>} */
+  const knownTools = new Set();
+  try {
+    for (const definition of toolsService?.definitions?.() ?? []) {
+      if (typeof definition?.name === 'string') knownTools.add(definition.name);
+    }
+  } catch {
+    /* tools registry unavailable */
+  }
+  const bundles = manager !== undefined ? await manager.listBundles() : [];
+  /** @type {Record<string, string>} */
+  const tools = {};
+  /** @type {Record<string, { status: string, tools: string[] }>} */
+  const bundleInfo = {};
+  const seen = new Map();
+  for (const bundle of bundles) {
+    if (typeof bundle.name !== 'string') continue;
+    const included = bundle.installed === true || (bundle.official === true && bundle.enabled === true);
+    if (!included) continue;
+    const dirs = await bundlePackageDirs(bundle);
+    if (dirs.length === 0) continue;
+    let hasClient = false;
+    let text = '';
+    for (const dir of dirs) {
+      try {
+        const pkg = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8'));
+        hasClient = hasClient || Boolean(pkg?.dsh?.client);
+      } catch {
+        /* package.json is optional for this scan */
+      }
+      text += await packageText(dir);
+    }
+    const found = new Set();
+    for (const match of text.matchAll(/["']([a-z][a-z0-9]*(?:_[a-z0-9]+){1,6})["']/g)) {
+      const candidate = match[1];
+      if (knownTools.has(candidate)) found.add(candidate);
+    }
+    bundleInfo[bundle.name] = { status: found.size > 0 ? 'tools' : hasClient ? 'ui' : 'unknown', tools: [...found].sort() };
+    for (const tool of found) {
+      const owner = seen.get(tool);
+      if (owner === undefined) seen.set(tool, new Set([bundle.name]));
+      else owner.add(bundle.name);
+    }
+  }
+  for (const [tool, owners] of seen) {
+    if (owners.size === 1) tools[tool] = [...owners][0];
+  }
+  usageMapCache = { at: Date.now(), tools, bundles: bundleInfo };
+  try {
+    await mkdir(CACHE_DIR, { recursive: true });
+    await writeFile(USAGE_MAP_FILE, JSON.stringify({ at: usageMapCache.at, tools, bundles: bundleInfo }, null, 2), 'utf8');
+  } catch {
+    /* cache is best-effort */
+  }
+  return usageMapCache;
+}
+
+/**
+ * Build the usage report: per-plugin counts, last use, idle candidates and recent activity.
+ * @param {boolean} [refreshMap] rebuild the attribution map first
+ * @returns {Promise<any>} report
+ */
+async function usageReport(refreshMap = false) {
+  const manager = hostCtx?.get('pluginManager');
+  const map = await usageCapabilityMap(refreshMap);
+  const state = await loadUsageState();
+  const records = await readUsageLog();
+  const now = Date.now();
+  /** @type {Map<string, { uses: number, lastUsed: number | null }>} */
+  const perBundle = new Map();
+  /** @type {Map<string, number>} */
+  const perTool = new Map();
+  /** @type {any[]} */
+  const recent = [];
+  let lastSuggestion = null;
+  let lastInstall = null;
+  for (const record of records) {
+    const at = typeof record.at === 'string' ? Date.parse(record.at) : now;
+    if (Number.isFinite(at)) recent.push(record);
+    if (record.kind === 'suggestion') lastSuggestion = record.at;
+    if (record.kind === 'install') lastInstall = record.at;
+    if (record.kind !== 'tool') continue;
+    perTool.set(record.name, (perTool.get(record.name) ?? 0) + 1);
+    const bundle = map.tools[record.name];
+    if (bundle === undefined) continue;
+    const current = perBundle.get(bundle) ?? { uses: 0, lastUsed: null };
+    current.uses += 1;
+    current.lastUsed = current.lastUsed === null ? at : Math.max(current.lastUsed, at);
+    perBundle.set(bundle, current);
+  }
+  const bundles = manager !== undefined ? await manager.listBundles() : [];
+  /** @type {any[]} */
+  const plugins = [];
+  let stateChanged = false;
+  for (const bundle of bundles) {
+    const included = bundle.installed === true || (bundle.official === true && bundle.enabled === true);
+    if (!included) continue;
+    const firstSeen = state.firstSeen[bundle.name];
+    if (typeof firstSeen !== 'string') {
+      let seen = new Date(now).toISOString();
+      const dir = await packageDir(bundle.name);
+      if (dir !== null) {
+        try {
+          const info = await stat(join(dir, 'package.json'));
+          if (info.mtimeMs < now - 60 * 60 * 1000) seen = new Date(info.mtimeMs).toISOString();
+        } catch {
+          /* fall back to the observation time */
+        }
+      }
+      state.firstSeen[bundle.name] = seen;
+      stateChanged = true;
+    }
+    const ageDays = typeof firstSeen === 'string' ? Math.max(0, (now - Date.parse(firstSeen)) / 86400000) : 0;
+    const usage = perBundle.get(bundle.name) ?? { uses: 0, lastUsed: null };
+    const info = map.bundles[bundle.name] ?? { status: 'unknown', tools: [] };
+    const quietDays = usage.lastUsed === null ? ageDays : Math.max(0, (now - usage.lastUsed) / 86400000);
+    const idle = bundle.official !== true && bundle.removable === true && info.status === 'tools'
+      && usage.uses <= USAGE_IDLE_MAX_USES && ageDays >= USAGE_IDLE_DAYS && quietDays >= USAGE_IDLE_DAYS;
+    plugins.push({
+      name: bundle.name,
+      official: bundle.official === true,
+      title: localized(bundle.meta?.title) || bundle.name,
+      version: bundle.version ?? null,
+      removable: bundle.removable === true,
+      enabled: bundle.enabled === true,
+      status: info.status,
+      mappedTools: info.tools,
+      uses: usage.uses,
+      lastUsed: usage.lastUsed === null ? null : new Date(usage.lastUsed).toISOString(),
+      firstSeen: state.firstSeen[bundle.name],
+      ageDays: Math.round(ageDays * 10) / 10,
+      quietDays: Math.round(quietDays * 10) / 10,
+      idle,
+    });
+  }
+  if (stateChanged) await saveUsageState();
+  const tools = [...perTool.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, 12)
+    .map(([tool, count]) => ({ tool, count, bundle: map.tools[tool] ?? null }));
+  return {
+    startedAt: state.startedAt,
+    records: records.length,
+    plugins,
+    idle: plugins.filter((plugin) => plugin.idle),
+    tools,
+    recent: recent.slice(-15).reverse(),
+    lastSuggestion,
+    lastInstall,
+    rules: { idleDays: USAGE_IDLE_DAYS, maxUses: USAGE_IDLE_MAX_USES },
+  };
 }
 
 // #endregion
@@ -1653,6 +2034,24 @@ function registerRoutes(ctx) {
     },
   });
 
+  // #region Plugin usage monitoring
+
+  ctx.connection.fetch.register({
+    path: '/api/plugin-discovery/usage',
+    methods: ['GET'],
+    requestBody: 'buffered',
+    fetch: async (request) => {
+      try {
+        const url = new URL(request.url, 'http://localhost');
+        return json(await usageReport(url.searchParams.get('refresh') === '1'));
+      } catch (error) {
+        return json({ error: error instanceof Error ? error.message : String(error) }, 500);
+      }
+    },
+  });
+
+  // #endregion
+
   // #region Plugin management (bundles: official / installed)
 
   ctx.connection.fetch.register({
@@ -1727,6 +2126,7 @@ function registerRoutes(ctx) {
         const name = typeof body?.name === 'string' ? body.name : '';
         if (name.length === 0) return json({ error: '缺少组合包名称' }, 400);
         const change = await manager.removeBundle(name);
+        if (change.application !== 'failed') void recordUsage({ kind: 'remove', name, bundle: name });
         return json({
           ok: change.application !== 'failed',
           application: change.application,
@@ -1860,6 +2260,21 @@ export function apply(ctx) {
   if (typeof ctx.on === 'function') {
     ctx.on('agent/inbox/inserted', (payload) => {
       void handleInboxMessage(payload);
+    });
+    ctx.on('tools/post-execute', (exec, result, next) => {
+      try {
+        const toolName = typeof exec?.name === 'string' ? exec.name : '';
+        if (toolName.length > 0) {
+          void recordUsage({
+            kind: 'tool',
+            name: toolName,
+            sessionId: typeof exec?.agent?.id === 'string' ? exec.agent.id : undefined,
+          });
+        }
+      } catch {
+        /* usage logging must never disturb the call */
+      }
+      return next();
     });
   }
 }

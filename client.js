@@ -37,9 +37,6 @@ window.__ModuleLoader__.load({
       'action.open': '打开项目',
       'filter.all': '全部',
       'filter.other': '其他',
-      'similar.title': '同类插件',
-      'similar.count': '共 {count} 个，按最高 Star 排序',
-      'similar.clear': '清除筛选',
       'filter.search': '搜索插件名称、简介或主题…',
       'sort.label': '排序',
       'sort.catalog': '全部（目录顺序）',
@@ -148,12 +145,33 @@ window.__ModuleLoader__.load({
       'aui.card.reason': '匹配到：{terms}',
       'aui.card.install': '安装',
       'aui.card.installing': '安装中…',
-      'aui.card.open': '看看同类插件',
       'aui.card.ignore': '忽略',
       'aui.card.mute': '不再提示',
       'aui.card.installed': '已安装，刷新窗口即可使用',
       'aui.card.failed': '安装失败：{error}',
       'aui.card.footer': '在「插件发现 → AUI」里可以调整或关闭这个行为',
+      'usage.title': '插件使用情况',
+      'usage.summary': '监控已运行 {days} 天 · 记录 {records} 次工具调用 · 第三方插件 {plugins} 个',
+      'usage.idleTitle': '装了但很少用',
+      'usage.idleHint': '这些插件使用次数很少、且已经很久没用了。移除后下次有相关需求时，AUI 可以再帮你把它找回来。',
+      'usage.idleEmpty': '暂时没有需要清理的插件',
+      'usage.status.tools': '工具型',
+      'usage.status.ui': '界面型（暂不统计）',
+      'usage.status.unknown': '无法统计',
+      'usage.uses': '使用 {count} 次',
+      'usage.lastUsed': '最近使用：{when}',
+      'usage.neverUsed': '还没记录到使用',
+      'usage.firstSeen': '首次记录：{when}',
+      'usage.rule': '闲置判定：{days} 天未使用且使用不超过 {maxUses} 次',
+      'usage.recent': '最近活动',
+      'usage.noActivity': '还没有使用记录',
+      'usage.empty': '当前没有可统计的第三方插件',
+      'usage.uninstallHint': '移除只卸载插件本身，不会删除你的会话或文件。',
+      'usage.officialLine': '官方插件使用：{items}',
+      'time.justNow': '刚刚',
+      'time.minutesAgo': '{count} 分钟前',
+      'time.hoursAgo': '{count} 小时前',
+      'time.daysAgo': '{count} 天前',
     };
 
     /** English dictionaries. */
@@ -171,9 +189,6 @@ window.__ModuleLoader__.load({
       'action.open': 'Open project',
       'filter.all': 'All',
       'filter.other': 'Other',
-      'similar.title': 'Similar plugins',
-      'similar.count': '{count} plugins, sorted by stars',
-      'similar.clear': 'Clear filter',
       'filter.search': 'Search name, description or topics…',
       'sort.label': 'Sort',
       'sort.catalog': 'All (catalog order)',
@@ -282,12 +297,33 @@ window.__ModuleLoader__.load({
       'aui.card.reason': 'Matched: {terms}',
       'aui.card.install': 'Install',
       'aui.card.installing': 'Installing…',
-      'aui.card.open': 'Browse similar',
       'aui.card.ignore': 'Ignore',
       'aui.card.mute': 'Don\'t suggest again',
       'aui.card.installed': 'Installed — refresh the window to use it',
       'aui.card.failed': 'Install failed: {error}',
       'aui.card.footer': 'Adjust or disable this in Plugin Discovery → AUI',
+      'usage.title': 'Plugin usage',
+      'usage.summary': 'Monitoring for {days} days · {records} tool calls recorded · {plugins} third-party plugins',
+      'usage.idleTitle': 'Installed but rarely used',
+      'usage.idleHint': 'These plugins were barely used and have been quiet for a long time. Remove them, and AUI can find them again when a relevant need comes up.',
+      'usage.idleEmpty': 'Nothing to clean up right now',
+      'usage.status.tools': 'Tool plugin',
+      'usage.status.ui': 'UI plugin (not counted yet)',
+      'usage.status.unknown': 'Not measurable',
+      'usage.uses': '{count} uses',
+      'usage.lastUsed': 'Last used: {when}',
+      'usage.neverUsed': 'No use recorded yet',
+      'usage.firstSeen': 'First seen: {when}',
+      'usage.rule': 'Idle rule: no use for {days} days and at most {maxUses} uses',
+      'usage.recent': 'Recent activity',
+      'usage.noActivity': 'No activity yet',
+      'usage.empty': 'No measurable third-party plugins yet',
+      'usage.uninstallHint': 'Removing only uninstalls the plugin; your sessions and files stay.',
+      'usage.officialLine': 'Official plugin usage: {items}',
+      'time.justNow': 'just now',
+      'time.minutesAgo': '{count} min ago',
+      'time.hoursAgo': '{count} h ago',
+      'time.daysAgo': '{count} d ago',
     };
 
     const CSS = `
@@ -382,8 +418,6 @@ window.__ModuleLoader__.load({
 .pd-note a{color:var(--dsw-alias-brand-primary,#2F6FED);text-decoration:none}
 .pd-note a:hover{text-decoration:underline}
 @media (max-width:860px){.pd-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.pd-scroll{padding:14px 12px 20px}.pd-hide-narrow{display:none}}
-.pd-similar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--dsw-alias-border-l1,#e4e8f0);border-left:3px solid var(--dsw-alias-brand-primary,#2F6FED);background:var(--dsw-alias-bg-layer-2,#f7f8fa);border-radius:9px;padding:7px 11px;font-size:12px}
-.pd-similar-title{font-weight:600}
 .pd-tabs{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .pd-tab{border:1px solid transparent;background:transparent;color:var(--dsw-alias-label-secondary,#667085);border-radius:8px;padding:5px 12px;font:inherit;font-size:12.5px;cursor:pointer}
 .pd-tab:hover{background:var(--dsw-alias-bg-layer-2,#f4f6fa)}
@@ -393,6 +427,19 @@ window.__ModuleLoader__.load({
 .pd-seg{display:flex;border:1px solid var(--dsw-alias-border-l1,#e4e8f0);border-radius:8px;overflow:hidden}
 .pd-seg button{border:none;background:transparent;color:var(--dsw-alias-label-secondary,#667085);padding:5px 12px;font:inherit;font-size:12px;cursor:pointer}
 .pd-seg button.on{background:var(--dsw-alias-brand-primary,#2F6FED);color:#fff}
+.pd-usage{border:1px solid var(--dsw-alias-border-l1,#e4e8f0);border-radius:12px;padding:12px 14px;background:var(--dsw-alias-bg-layer-1,#fff);margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.pd-usage h3{margin:0;font-size:13px;font-weight:600}
+.pd-usage .hint{margin:0;font-size:11.5px;color:var(--dsw-alias-label-secondary,#667085)}
+.pd-usage-idle-title{font-weight:600;color:var(--dsw-alias-state-warn-primary,#f79009);font-size:12.5px}
+.pd-usage-list{display:flex;flex-direction:column;gap:6px}
+.pd-usage-row{display:flex;gap:10px;align-items:center;justify-content:space-between;border:1px solid var(--dsw-alias-border-l1,#e4e8f0);border-radius:8px;padding:7px 10px}
+.pd-usage-row.warn{border-color:color-mix(in srgb,var(--dsw-alias-state-warn-primary,#f79009) 45%,transparent)}
+.pd-usage-main{min-width:0;display:flex;flex-direction:column;gap:2px}
+.pd-usage-title{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-weight:600;font-size:12.5px}
+.pd-usage-meta{font-size:11.5px;color:var(--dsw-alias-label-secondary,#667085)}
+.pd-usage-actions{display:flex;gap:6px;align-items:center;flex:0 0 auto}
+.pd-usage-activity b{font-size:12px}
+.pd-usage-activity ul{margin:4px 0 0;padding-left:16px;font-size:11.5px;color:var(--dsw-alias-label-secondary,#667085)}
 .pd-manage-section{margin-top:14px}
 .pd-manage-section h3{margin:0 0 4px;font-size:13px;font-weight:600;display:flex;gap:8px;align-items:center}
 .pd-manage-section p.hint{margin:0 0 8px;font-size:11.5px;color:var(--dsw-alias-label-secondary,#667085)}
@@ -441,9 +488,6 @@ window.__ModuleLoader__.load({
 
     const CATEGORY_ZH = new Map();
 
-    /** Cross-component intent: open the discovery view, optionally pre-filled with a query. */
-    const discoveryRequests = { request: null, listeners: new Set() };
-
     /**
      * Resolve the slot translator, falling back to the bundled dictionaries.
      * @param {any} props slot props
@@ -458,19 +502,22 @@ window.__ModuleLoader__.load({
       };
     }
 
+
     /**
-     * Ask the discovery page to open (and optionally search for a phrase).
-     * @param {string} query search text
+     * Format an ISO timestamp as compact relative time.
+     * @param {string | null} iso timestamp
+     * @param {(key: string, vars?: Record<string, unknown>) => string} t translator
+     * @returns {string} display text
      */
-    function requestDiscovery(request) {
-      discoveryRequests.request = request;
-      for (const listener of discoveryRequests.listeners) {
-        try {
-          listener(request);
-        } catch {
-          /* a stale listener must not break the overlay */
-        }
-      }
+    function relativeTime(iso, t) {
+      if (typeof iso !== 'string' || iso.length === 0) return t('usage.neverUsed');
+      const diff = Math.max(0, Date.now() - Date.parse(iso));
+      const minutes = Math.round(diff / 60000);
+      if (minutes < 1) return t('time.justNow');
+      if (minutes < 60) return t('time.minutesAgo', { count: minutes });
+      const hours = Math.round(minutes / 60);
+      if (hours < 24) return t('time.hoursAgo', { count: hours });
+      return t('time.daysAgo', { count: Math.round(hours / 24) });
     }
 
     /**
@@ -585,8 +632,6 @@ window.__ModuleLoader__.load({
       const [page, setPage] = React.useState(1);
       const [view, setView] = React.useState('discover');
       const [showAui, setShowAui] = React.useState(false);
-      const [similar, setSimilar] = React.useState(null);
-      const [similarNote, setSimilarNote] = React.useState(null);
       const [installing, setInstalling] = React.useState(() => new Set());
       const [installedFull, setInstalledFull] = React.useState(() => new Set());
       const [installedBundles, setInstalledBundles] = React.useState([]);
@@ -603,36 +648,6 @@ window.__ModuleLoader__.load({
 
       React.useEffect(() => () => {
         if (toastTimer.current !== null) clearTimeout(toastTimer.current);
-      }, []);
-
-      // The AUI overlay can ask this page to open on a search phrase or on a category.
-      React.useEffect(() => {
-        const applyRequest = (requested) => {
-          const request = typeof requested === 'string' ? { query: requested } : (requested ?? {});
-          setView('discover');
-          setPage(1);
-          setQuery(typeof request.query === 'string' ? request.query.trim() : '');
-          const wanted = typeof request.category === 'string' ? request.category : '';
-          if (wanted.length > 0) {
-            const zh = request.categoryZh || CATEGORY_ZH.get(wanted) || wanted;
-            setSimilarNote({ key: wanted, zh });
-            setCategory('all');
-            setSimilar({ key: wanted, zh });
-            setSort('stars');
-          } else {
-            setSimilar(null);
-            setSimilarNote(null);
-            setCategory('all');
-          }
-        };
-        discoveryRequests.listeners.add(applyRequest);
-        if (discoveryRequests.request !== null) {
-          applyRequest(discoveryRequests.request);
-          discoveryRequests.request = null;
-        }
-        return () => {
-          discoveryRequests.listeners.delete(applyRequest);
-        };
       }, []);
 
       // Mark plugins that are already installed in this profile.
@@ -852,9 +867,7 @@ window.__ModuleLoader__.load({
       const filtered = React.useMemo(() => {
         const needle = query.trim().toLowerCase();
         let list = rows;
-        if (similar !== null) {
-          list = list.filter((row) => row.category === similar.key);
-        } else if (category !== 'all') {
+        if (category !== 'all') {
           list = category === 'other'
             ? list.filter((row) => otherCategoryKeys.has(row.category))
             : list.filter((row) => row.category === category);
@@ -870,7 +883,7 @@ window.__ModuleLoader__.load({
         if (sort === 'stars') return list.slice().sort((a, b) => b.stars - a.stars || a.name.localeCompare(b.name));
         if (sort === 'updated') return list.slice().sort((a, b) => (b.updated || '').localeCompare(a.updated || '') || b.stars - a.stars);
         return list.slice().sort((a, b) => (categoryRank.get(a.category) ?? 99) - (categoryRank.get(b.category) ?? 99) || b.stars - a.stars);
-      }, [rows, query, category, sort, otherCategoryKeys, categoryRank, similar]);
+      }, [rows, query, category, sort, otherCategoryKeys, categoryRank]);
 
       const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
       const current = Math.min(page, pages);
@@ -1003,21 +1016,19 @@ window.__ModuleLoader__.load({
       );
 
       const chooseCategory = (value) => {
-        setSimilar(null);
-        setSimilarNote(null);
         setCategory(value);
       };
       const chips = [
         h(
           'button',
-          { key: 'all', className: `pd-chip${category === 'all' && similar === null ? ' on' : ''}`, onClick: () => chooseCategory('all') },
+          { key: 'all', className: `pd-chip${category === 'all' ? ' on' : ''}`, onClick: () => chooseCategory('all') },
           t('filter.all'),
           h('small', null, total.toLocaleString('zh-CN')),
         ),
         ...headCategories.map((item) =>
           h(
             'button',
-            { key: item.key, className: `pd-chip${(similar !== null ? similar.key === item.key : category === item.key) ? ' on' : ''}`, onClick: () => chooseCategory(item.key), title: item.en },
+            { key: item.key, className: `pd-chip${category === item.key ? ' on' : ''}`, onClick: () => chooseCategory(item.key), title: item.en },
             item.zh,
             h('small', null, item.count.toLocaleString('zh-CN')),
           ),
@@ -1025,31 +1036,14 @@ window.__ModuleLoader__.load({
         otherCount > 0
           ? h(
               'button',
-              { key: 'other', className: `pd-chip${category === 'other' && similar === null ? ' on' : ''}`, onClick: () => chooseCategory('other'), title: categories.slice(HEAD_CHIPS).map((item) => item.zh).join(' / ') },
+              { key: 'other', className: `pd-chip${category === 'other' ? ' on' : ''}`, onClick: () => chooseCategory('other'), title: categories.slice(HEAD_CHIPS).map((item) => item.zh).join(' / ') },
               t('filter.other'),
               h('small', null, otherCount.toLocaleString('zh-CN')),
             )
           : null,
-        similar !== null && !headCategories.some((item) => item.key === similar.key)
-          ? h(
-              'button',
-              { key: 'similar', className: 'pd-chip on', onClick: () => chooseCategory('all') },
-              similar.zh,
-              h('small', null, filtered.length.toLocaleString('zh-CN')),
-            )
-          : null,
+
       ];
 
-      const similarBanner = similarNote !== null
-        ? h(
-            'div',
-            { className: 'pd-similar' },
-            h('span', { className: 'pd-similar-title' }, t('similar.title')),
-            h('b', null, similarNote.zh),
-            h('span', { className: 'pd-muted' }, t('similar.count', { count: filtered.length.toLocaleString('zh-CN') })),
-            h('button', { className: 'pd-btn', onClick: () => chooseCategory('all') }, t('similar.clear')),
-          )
-        : null;
 
       const toolbar = h(
         'div',
@@ -1294,7 +1288,6 @@ window.__ModuleLoader__.load({
             : null,
           summaryCard,
           h('div', { className: 'pd-chips' }, chips),
-          similarBanner,
           toolbar,
           renderInstallStatus(),
           table,
@@ -1318,6 +1311,7 @@ window.__ModuleLoader__.load({
     function ManagementView(props) {
       const t = createTranslator(props);
       const [bundles, setBundles] = React.useState(null);
+      const [usage, setUsage] = React.useState(null);
       const [error, setError] = React.useState(null);
       const [loading, setLoading] = React.useState(true);
       const [mode, setMode] = React.useState('list');
@@ -1329,10 +1323,17 @@ window.__ModuleLoader__.load({
       const load = React.useCallback(async () => {
         setLoading(true);
         try {
-          const response = await fetch('/api/plugin-discovery/bundles', { cache: 'no-store' });
+          const [response, usageResponse] = await Promise.all([
+            fetch('/api/plugin-discovery/bundles', { cache: 'no-store' }),
+            fetch('/api/plugin-discovery/usage', { cache: 'no-store' }),
+          ]);
           const body = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(body.error ?? `HTTP ${response.status}`);
           setBundles(Array.isArray(body.bundles) ? body.bundles : []);
+          if (usageResponse.ok) {
+            const usageBody = await usageResponse.json().catch(() => null);
+            if (usageBody !== null && typeof usageBody === 'object') setUsage(usageBody);
+          }
           setError(null);
         } catch (cause) {
           setError(cause instanceof Error ? cause.message : String(cause));
@@ -1441,6 +1442,75 @@ window.__ModuleLoader__.load({
         );
       };
 
+      const allUsagePlugins = Array.isArray(usage?.plugins) ? usage.plugins : [];
+      const usagePlugins = allUsagePlugins.filter((plugin) => plugin.official !== true);
+      const officialUsage = allUsagePlugins.filter((plugin) => plugin.official === true && plugin.uses > 0).sort((left, right) => right.uses - left.uses).slice(0, 6);
+      const usageIdle = Array.isArray(usage?.idle) ? usage.idle : [];
+      const monitoredDays = usage?.startedAt ? Math.max(1, Math.ceil((Date.now() - Date.parse(usage.startedAt)) / 86400000)) : 0;
+      const idleDays = usage?.rules?.idleDays ?? 7;
+      const maxIdleUses = usage?.rules?.maxUses ?? 2;
+      const usageStatusLabel = (status) =>
+        status === 'tools' ? t('usage.status.tools') : status === 'ui' ? t('usage.status.ui') : t('usage.status.unknown');
+      const renderUsageRow = (plugin) => h(
+        'div',
+        { className: `pd-usage-row${plugin.idle ? ' warn' : ''}`, key: plugin.name },
+        h(
+          'div',
+          { className: 'pd-usage-main' },
+          h(
+            'div',
+            { className: 'pd-usage-title' },
+            h('span', null, plugin.title || plugin.name),
+            h('span', { className: 'pd-tag' }, usageStatusLabel(plugin.status)),
+            plugin.idle ? h('span', { className: 'pd-tag warn' }, t('usage.idleTitle')) : null,
+          ),
+          h('div', { className: 'pd-usage-meta' }, `${t('usage.uses', { count: plugin.uses })} · ${relativeTime(plugin.lastUsed, t)}`),
+        ),
+        h(
+          'div',
+          { className: 'pd-usage-actions' },
+          plugin.removable
+            ? confirming === plugin.name
+              ? h('button', { className: 'pd-btn danger', disabled: busy.length > 0, onClick: () => void remove(plugin.name) }, busy === plugin.name ? t('manage.removing') : t('manage.confirmRemove'))
+              : h('button', { className: 'pd-btn', disabled: busy.length > 0, onClick: () => setConfirming(plugin.name) }, t('manage.remove'))
+            : null,
+          confirming === plugin.name ? h('button', { className: 'pd-btn', onClick: () => setConfirming('') }, t('manage.cancel')) : null,
+        ),
+      );
+      const usageSection = usage === null
+        ? null
+        : h(
+            'section',
+            { className: 'pd-usage' },
+            h('h3', null, t('usage.title')),
+            h('p', { className: 'hint' }, t('usage.summary', { days: monitoredDays, records: usage.records ?? 0, plugins: usagePlugins.length })),
+            officialUsage.length > 0
+              ? h('div', { className: 'pd-note' }, t('usage.officialLine', { items: officialUsage.map((plugin) => `${plugin.title} ${t('usage.uses', { count: plugin.uses })}`).join(' · ') }))
+              : null,
+            usageIdle.length > 0
+              ? h(
+                  React.Fragment,
+                  null,
+                  h('div', { className: 'pd-usage-idle-title' }, t('usage.idleTitle')),
+                  h('p', { className: 'hint' }, t('usage.idleHint')),
+                  h('div', { className: 'pd-usage-list' }, usageIdle.map(renderUsageRow)),
+                )
+              : h('div', { className: 'pd-note' }, t('usage.idleEmpty')),
+            h('p', { className: 'pd-note' }, t('usage.rule', { days: idleDays, maxUses: maxIdleUses })),
+            usagePlugins.length === 0
+              ? h('div', { className: 'pd-note' }, t('usage.empty'))
+              : h('div', { className: 'pd-usage-list' }, usagePlugins.map(renderUsageRow)),
+            h(
+              'div',
+              { className: 'pd-usage-activity' },
+              h('b', null, t('usage.recent')),
+              Array.isArray(usage.recent) && usage.recent.length > 0
+                ? h('ul', null, usage.recent.slice(0, 8).map((record, index) => h('li', { key: `${record.at}-${index}` }, `${String(record.at ?? '').slice(11, 19)} · ${record.kind} · ${record.name}`)))
+                : h('div', { className: 'pd-note' }, t('usage.noActivity')),
+            ),
+            h('p', { className: 'pd-note' }, t('usage.uninstallHint')),
+          );
+
       return h(
         'div',
         { className: 'pd-manage' },
@@ -1464,6 +1534,7 @@ window.__ModuleLoader__.load({
         notice ? h('div', { className: 'pd-note', style: { color: 'var(--dsw-alias-state-success-primary,#12B76A)' } }, notice) : null,
         error ? h('div', { className: 'pd-card pd-err', style: { marginTop: 10 } }, t('manage.error', { error })) : null,
         loading && bundles === null ? h('div', { className: 'pd-state' }, h('i', { className: 'pd-spin' }), ' ', t('manage.loading')) : null,
+        usageSection,
         h(
           'section',
           { className: 'pd-manage-section' },
@@ -1651,12 +1722,11 @@ window.__ModuleLoader__.load({
     /**
      * Frame-wide AUI card: shows the plugin suggested from the last user message.
      * Polls the Host for a pending suggestion; never installs without a click.
-     * @param {{ t?: Function, openDiscovery?: (query: string) => void }} props slot props
+     * @param {{ t?: Function }} props slot props
      * @returns {any} floating card or null
      */
     function AuiOverlay(props) {
       const t = createTranslator(props);
-      const openDiscovery = typeof props.openDiscovery === 'function' ? props.openDiscovery : null;
       const [suggestion, setSuggestion] = React.useState(null);
       const [status, setStatus] = React.useState({ kind: '', message: '' });
       const [busy, setBusy] = React.useState(false);
@@ -1757,17 +1827,6 @@ window.__ModuleLoader__.load({
           'div',
           { className: 'pd-aui-actions' },
           h('button', { className: 'pd-btn primary', disabled: busy, onClick: () => void install() }, busy ? t('aui.card.installing') : t('aui.card.install')),
-          openDiscovery !== null
-            ? h('button', {
-                className: 'pd-btn',
-                onClick: () => {
-                  openDiscovery(plugin.category
-                    ? { category: plugin.category, categoryZh: plugin.categoryZh }
-                    : { query: plugin.name });
-                  void dismiss({});
-                },
-              }, t('aui.card.open'))
-            : null,
           h('button', { className: 'pd-btn', onClick: () => void dismiss({}) }, t('aui.card.ignore')),
           h('button', { className: 'pd-btn', onClick: () => void dismiss({ mutePlugin: true }) }, t('aui.card.mute')),
         ),
@@ -1822,19 +1881,9 @@ window.__ModuleLoader__.load({
         id: 'plugin-discovery-aui',
         order: 50,
         locale: NS,
-        inject: () => ({
-          openDiscovery: (request) => {
-            requestDiscovery(request);
-            try {
-              ctx.layout.selectPanel(PANEL_ID);
-            } catch (error) {
-              console.error('plugin-discovery: cannot open the discovery panel', error);
-            }
-          },
-        }),
       }, AuiOverlay)), 'plugin-discovery: AUI overlay');
     }
 
-    return { inject: ['slots', 'locale', 'layout'], apply, DiscoveryPage, DiscoveryIcon, ManagementView, AuiOverlay, AuiSettingsDialog, requestDiscovery };
+    return { inject: ['slots', 'locale', 'layout'], apply, DiscoveryPage, DiscoveryIcon, ManagementView, AuiOverlay, AuiSettingsDialog };
   },
 });
